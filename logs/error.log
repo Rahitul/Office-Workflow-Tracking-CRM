@@ -1,0 +1,53 @@
+2026-04-07 23:30:19 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:30:19 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:30:19 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:30:19 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:30:19 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:30:19 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:30:56 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:30:56 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:30:56 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:30:56 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:30:56 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:30:56 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:32:06 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:32:06 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:32:06 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:32:06 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:32:06 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:32:06 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:32:22 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:32:22 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:32:22 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:32:22 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:32:22 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:32:22 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:33:58 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:33:58 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:33:58 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:33:58 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:33:58 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:33:58 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:35:37 -07:00: Error: The edge runtime does not support Node.js 'stream' module.
+2026-04-07 23:35:37 -07:00: Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+2026-04-07 23:35:37 -07:00:     at Object.get (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:7:317)
+2026-04-07 23:35:37 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:43036)
+2026-04-07 23:35:37 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:45454)
+2026-04-07 23:35:37 -07:00:     at module evaluation (H:\iomdaily\.next\standalone\.next\server\edge\chunks\[root-of-the-server]__00b80dn._.js:4:67601)
+2026-04-07 23:43:11 -07:00: Register error: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+2026-04-07 23:43:11 -07:00:     at JSON.parse (<anonymous>)
+2026-04-07 23:43:11 -07:00: (node:9860) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"expiresAt":1} for model "RefreshToken". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-04-07 23:43:11 -07:00: (Use `NODE.EXE --trace-warnings ...` to show where the warning was created)
+2026-04-07 23:43:35 -07:00: Register error: SyntaxError: Bad escaped character in JSON at position 8 (line 1 column 9)
+2026-04-07 23:43:35 -07:00:     at JSON.parse (<anonymous>)
+2026-04-08 00:33:50 -07:00: Register error: SyntaxError: Bad escaped character in JSON at position 8 (line 1 column 9)
+2026-04-08 00:33:50 -07:00:     at JSON.parse (<anonymous>)
+2026-04-08 00:57:15 -07:00: (node:13032) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"expiresAt":1} for model "RefreshToken". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-04-08 00:57:15 -07:00: (Use `NODE.EXE --trace-warnings ...` to show where the warning was created)
+2026-04-08 01:24:26 -07:00: (node:19720) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"expiresAt":1} for model "RefreshToken". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-04-08 01:24:26 -07:00: (Use `NODE.EXE --trace-warnings ...` to show where the warning was created)
+2026-04-08 01:54:13 -07:00: (node:19720) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+2026-04-08 02:05:39 -07:00: (node:19720) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+2026-04-08 02:14:35 -07:00: (node:1548) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"expiresAt":1} for model "RefreshToken". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-04-08 02:14:35 -07:00: (Use `NODE.EXE --trace-warnings ...` to show where the warning was created)
+2026-04-08 02:49:02 -07:00: (node:1548) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.

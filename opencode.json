@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "deploy.bat - Windows batch script to build and deploy the app",
+    "deploy.ps1 - PowerShell deployment script (recommended)",
+    "MONGODB-SETUP.md - MongoDB installation and setup guide"
+  ]
+}
