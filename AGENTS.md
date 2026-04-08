@@ -29,14 +29,15 @@ Create `.env.local` with:
 - **State:** Zustand (global UI), TanStack Query (server state)
 - **Models:** Mongoose in `models/` (User, Form, Response, RefreshToken, Activity, KpiTarget)
 - **Validation:** Zod schemas in `lib/validations/` for requests/forms
-- **Forms:** React Hook Form + dnd-kit for drag-and-drop builder
+- **Forms:** React Hook Form + dnd-kit for drag-and-drop builder (components in `components/forms/`)
+- **Charts:** Recharts directly via `recharts` dependency
 
 ## Development Workflow
 1. Always validate request bodies with Zod schemas from `lib/validations/`
 2. Use `connectDB()` helper in API routes for MongoDB connections
 3. Protect routes via middleware (`middleware.ts`) and server-side role checks
 4. For form builder: use `dnd-kit` with React Hook Form
-5. For charts: use Recharts wrappers in `components/charts/`
+5. For charts: import Recharts components directly (no wrapper components exist yet)
 
 ## File Conventions
 - **Components:** `components/ui/` (shadcn/ui base), `components/forms/`, `components/dashboard/`
@@ -50,7 +51,7 @@ Create `.env.local` with:
 - Tailwind 4 requires `@tailwindcss/postcss` in devDependencies
 - API route handlers must use `NextResponse` (not `res.status().json()`)
 - Middleware protects paths; login/register are public under `/api/auth`
-- Middleware must use `nodejs` runtime (not edge) - add `export const runtime = 'nodejs'`
+- Middleware uses `nodejs` runtime at line 22 (`middleware.ts:22`)
 - **Cookie network issue:** Cookies require `sameSite: "lax"` for cross-origin network access
 - **Role-based middleware:** Admin paths (`/admin/*`) blocked for user role; user paths blocked for admin role
 
