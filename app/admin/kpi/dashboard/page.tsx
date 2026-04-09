@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Phone, Calendar, Users, Mail, DollarSign, Target, TrendingUp, TrendingDown, Minus, LogOut, X } from "lucide-react"
+import { Phone, Calendar, Users, Mail, Banknote, Target, TrendingUp, TrendingDown, Minus, LogOut, X } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 import {
   PieChart,
@@ -225,7 +225,7 @@ export default function KpiDashboardPage() {
       },
       {
         name: "Orders",
-        icon: DollarSign,
+        icon: Banknote,
         color: "text-emerald-600",
         bg: "bg-emerald-50",
         target: totalTargets.orders,
@@ -328,7 +328,7 @@ export default function KpiDashboardPage() {
         },
         {
           name: "Orders",
-          icon: DollarSign,
+          icon: Banknote,
           color: "text-emerald-600",
           bg: "bg-emerald-50",
           target: target.ordersClosedTodayValue,

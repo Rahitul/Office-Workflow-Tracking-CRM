@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Phone, Calendar, Users, Mail, DollarSign, Target, Trash2, Save, CheckCircle, LogOut, ClipboardList } from "lucide-react"
+import { Phone, Calendar, Users, Mail, Banknote, Target, Trash2, Save, CheckCircle, LogOut, ClipboardList } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 
 interface User {
@@ -368,7 +368,7 @@ export default function KpiSettingsPage() {
                     <div className="space-y-2 group">
                       <Label htmlFor="orders" className="text-sm font-semibold text-slate-700 flex items-center gap-2 group-hover:text-indigo-600 transition-colors">
                         <div className="p-1 rounded bg-emerald-50">
-                          <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                          <Banknote className="h-3.5 w-3.5 text-emerald-600" />
                         </div>
                         Order Value
                       </Label>

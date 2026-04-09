@@ -3,8 +3,12 @@
 import { useEffect, useState, useMemo } from "react"
 import axios from "axios"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Phone, Calendar, Users, Mail, DollarSign, Target, TrendingUp } from "lucide-react"
+import { Phone, Calendar, Users, Mail, Banknote, Target, X } from "lucide-react"
 import {
   PieChart,
   Pie,
@@ -43,18 +47,46 @@ export default function UserKpiPage() {
   const [target, setTarget] = useState<KpiTarget | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: "",
+    end: ""
+  })
 
-  const currentMonth = new Date().getMonth() + 1
+  const MONTHS = [
+    { value: "1", label: "January" },
+    { value: "2", label: "February" },
+    { value: "3", label: "March" },
+    { value: "4", label: "April" },
+    { value: "5", label: "May" },
+    { value: "6", label: "June" },
+    { value: "7", label: "July" },
+    { value: "8", label: "August" },
+    { value: "9", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ]
+
   const currentYear = new Date().getFullYear()
+  const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(y => ({ value: y.toString(), label: y.toString() }))
 
   useEffect(() => {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    fetchData()
+  }, [selectedMonth, selectedYear, dateRange])
+
   const fetchData = async () => {
     try {
+      const month = parseInt(selectedMonth)
+      const year = parseInt(selectedYear)
+      
       const [targetsRes, activitiesRes] = await Promise.all([
-        axios.get(`/api/kpi-targets?month=${currentMonth}&year=${currentYear}`, { withCredentials: true }),
+        axios.get(`/api/kpi-targets?month=${month}&year=${year}`, { withCredentials: true }),
         axios.get("/api/static-form/activity", { withCredentials: true }),
       ])
       
@@ -71,16 +103,37 @@ export default function UserKpiPage() {
     }
   }
 
+  const handleDateRangeChange = (field: "start" | "end", value: string) => {
+    setDateRange(prev => ({ ...prev, [field]: value }))
+  }
+
+  const clearDateRange = () => {
+    setDateRange({ start: "", end: "" })
+  }
+
+  const hasDateRange = dateRange.start && dateRange.end
+
   const metrics = useMemo(() => {
     if (!target) return []
 
-    const month = currentMonth
-    const year = currentYear
+    const month = parseInt(selectedMonth)
+    const year = parseInt(selectedYear)
 
-    const userActivities = activities.filter(a => {
+    let userActivities = activities.filter(a => {
       const activityDate = new Date(a.activityDate)
       return activityDate.getMonth() + 1 === month && activityDate.getFullYear() === year
     })
+
+    if (hasDateRange) {
+      const startDate = new Date(dateRange.start)
+      const endDate = new Date(dateRange.end)
+      endDate.setHours(23, 59, 59, 999)
+      
+      userActivities = userActivities.filter(a => {
+        const activityDate = new Date(a.activityDate)
+        return activityDate >= startDate && activityDate <= endDate
+      })
+    }
 
     const totalAchieved = {
       coldCalls: userActivities.reduce((sum, a) => sum + (a.coldCallsMade || 0), 0),
@@ -144,7 +197,7 @@ export default function UserKpiPage() {
       },
       {
         name: "Orders",
-        icon: DollarSign,
+        icon: Banknote,
         color: "text-emerald-600",
         bg: "bg-emerald-50",
         target: target.ordersClosedTodayValue,
@@ -152,7 +205,7 @@ export default function UserKpiPage() {
         percentage: calculatePercentage(totalAchieved.orders, target.ordersClosedTodayValue),
       },
     ]
-  }, [target, activities, currentMonth, currentYear])
+  }, [target, activities, selectedMonth, selectedYear, dateRange, hasDateRange])
 
   const getPercentageColor = (percentage: number) => {
     if (percentage >= 100) return "text-emerald-600"
@@ -187,11 +240,68 @@ export default function UserKpiPage() {
           <p className="text-slate-500">View your monthly performance targets</p>
         </div>
 
+        {/* Filters Section */}
+        <Card className="border-slate-200 shadow-lg bg-white overflow-hidden ring-1 ring-slate-200/50">
+          <div className="bg-slate-50 border-b border-slate-100 px-6 py-3">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Target className="w-3.5 h-3.5" />
+              Filter by Period
+            </h3>
+          </div>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Month</Label>
+                <Select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  options={MONTHS}
+                  className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Year</Label>
+                <Select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  options={YEARS}
+                  className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Start Date</Label>
+                <Input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => handleDateRangeChange("start", e.target.value)}
+                  className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">End Date</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => handleDateRangeChange("end", e.target.value)}
+                    className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10 flex-1"
+                  />
+                  {hasDateRange && (
+                    <Button variant="ghost" size="icon" onClick={clearDateRange} className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all rounded-lg">
+                      <X size={18} />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="py-16 text-center border-dashed">
           <Target className="h-16 w-16 mx-auto mb-4 text-slate-300" />
           <h2 className="text-lg font-semibold text-slate-700 mb-2">No KPI Target Set</h2>
           <p className="text-slate-500 max-w-md mx-auto">
-            Your administrator has not set a KPI target for {getMonthName(currentMonth)} {currentYear}. 
+            Your administrator has not set a KPI target for {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}. 
             Please contact your admin to set your monthly targets.
           </p>
         </Card>
@@ -205,7 +315,7 @@ export default function UserKpiPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-8">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">My KPI Progress</h1>
-          <p className="text-slate-500 mt-1 text-lg">Performance benchmarks for <span className="text-indigo-600 font-semibold">{getMonthName(currentMonth)} {currentYear}</span></p>
+          <p className="text-slate-500 mt-1 text-lg">Performance benchmarks for <span className="text-indigo-600 font-semibold">{MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}</span></p>
         </div>
         <div className="flex items-center gap-3">
           <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 px-4 py-1.5 font-semibold text-sm rounded-full">
@@ -214,6 +324,63 @@ export default function UserKpiPage() {
           </Badge>
         </div>
       </div>
+
+      {/* Filters Section */}
+      <Card className="border-slate-200 shadow-lg bg-white overflow-hidden ring-1 ring-slate-200/50">
+        <div className="bg-slate-50 border-b border-slate-100 px-6 py-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Target className="w-3.5 h-3.5" />
+            Filter by Period
+          </h3>
+        </div>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Month</Label>
+              <Select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                options={MONTHS}
+                className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Year</Label>
+              <Select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                options={YEARS}
+                className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Start Date</Label>
+              <Input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => handleDateRangeChange("start", e.target.value)}
+                className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">End Date</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => handleDateRangeChange("end", e.target.value)}
+                  className="bg-slate-50 border-slate-200 focus:bg-white transition-all h-10 flex-1"
+                />
+                {hasDateRange && (
+                  <Button variant="ghost" size="icon" onClick={clearDateRange} className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all rounded-lg">
+                    <X size={18} />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {metrics.map((metric, idx) => {
@@ -295,12 +462,12 @@ export default function UserKpiPage() {
       <Card className="border-slate-200 shadow-2xl overflow-hidden bg-slate-900 rounded-3xl">
         <div className="px-8 py-6 border-b border-white/5">
           <CardTitle className="text-xl font-bold text-white flex items-center gap-3">
-            <TrendingUp className="h-5 w-5 text-indigo-400" />
+            <Target className="h-5 w-5 text-indigo-400" />
             Performance Insight Summary
           </CardTitle>
         </div>
         <CardContent className="p-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="relative group text-center p-8 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all">
               <div className="text-5xl font-black text-emerald-400 mb-2">
                 {metrics.filter(m => m.percentage >= 100).length}
@@ -308,16 +475,6 @@ export default function UserKpiPage() {
               <div className="text-xs font-bold text-indigo-300 uppercase tracking-[0.2em]">Targets Met</div>
               <div className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
                 <Target className="h-4 w-4 text-emerald-400" />
-              </div>
-            </div>
-
-            <div className="relative group text-center p-8 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all">
-              <div className="text-5xl font-black text-amber-400 mb-2">
-                {metrics.filter(m => m.percentage >= 70 && m.percentage < 100).length}
-              </div>
-              <div className="text-xs font-bold text-indigo-300 uppercase tracking-[0.2em]">In Progress</div>
-              <div className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
-                <TrendingUp className="h-4 w-4 text-amber-400" />
               </div>
             </div>
 
