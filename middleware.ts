@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
   
   // Define paths that require authentication
   const adminPaths = ["/admin"]
-  const userPaths = ["/user/dashboard", "/user/forms", "/user/activity", "/user/kpi", "/user/profile"]
+  const userPaths = ["/user/dashboard", "/user/forms", "/user/activity", "/user/kpi", "/user/profile", "/user/next-day-plan"]
   const apiAdminPaths = ["/api/forms", "/api/users", "/api/responses"]
   
   // Check if the current path requires authentication

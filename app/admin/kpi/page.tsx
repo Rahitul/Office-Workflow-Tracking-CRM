@@ -29,6 +29,7 @@ interface KpiTarget {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedTodayValue: number
+  quotationsIssuedTodayValue: number
 }
 
 const MONTHS = [
@@ -72,6 +73,7 @@ export default function KpiSettingsPage() {
   const [customerVisitsCompleted, setCustomerVisitsCompleted] = useState(0)
   const [salesEmailsSent, setSalesEmailsSent] = useState(0)
   const [ordersClosedTodayValue, setOrdersClosedTodayValue] = useState(0)
+  const [quotationsIssuedTodayValue, setQuotationsIssuedTodayValue] = useState(0)
 
   const fetchUsers = async () => {
     try {
@@ -111,6 +113,7 @@ export default function KpiSettingsPage() {
       setCustomerVisitsCompleted(existingTarget.customerVisitsCompleted)
       setSalesEmailsSent(existingTarget.salesEmailsSent)
       setOrdersClosedTodayValue(existingTarget.ordersClosedTodayValue)
+      setQuotationsIssuedTodayValue(existingTarget.quotationsIssuedTodayValue)
     } else {
       setColdCallsMade(0)
       setFollowUpCallsMade(0)
@@ -118,6 +121,7 @@ export default function KpiSettingsPage() {
       setCustomerVisitsCompleted(0)
       setSalesEmailsSent(0)
       setOrdersClosedTodayValue(0)
+      setQuotationsIssuedTodayValue(0)
     }
   }
 
@@ -152,6 +156,7 @@ export default function KpiSettingsPage() {
         customerVisitsCompleted,
         salesEmailsSent,
         ordersClosedTodayValue,
+        quotationsIssuedTodayValue,
       }, { withCredentials: true })
 
       setSuccess(true)
@@ -385,6 +390,27 @@ export default function KpiSettingsPage() {
                         />
                       </div>
                     </div>
+
+                    <div className="space-y-2 group">
+                      <Label htmlFor="quotations" className="text-sm font-semibold text-slate-700 flex items-center gap-2 group-hover:text-indigo-600 transition-colors">
+                        <div className="p-1 rounded bg-cyan-50">
+                          <Banknote className="h-3.5 w-3.5 text-cyan-600" />
+                        </div>
+                        Quotation Value
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <Input
+                          id="quotations"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={quotationsIssuedTodayValue}
+                          onChange={(e) => setQuotationsIssuedTodayValue(parseInt(e.target.value) || 0)}
+                          className="pl-7 bg-slate-50 border-slate-200 focus:bg-white transition-all focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -513,6 +539,10 @@ export default function KpiSettingsPage() {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-slate-400">Value:</span>
                                 <span className="font-bold text-emerald-600">৳{target.ordersClosedTodayValue.toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400">QTZ:</span>
+                                <span className="font-bold text-cyan-600">৳{target.quotationsIssuedTodayValue.toLocaleString()}</span>
                               </div>
                             </div>
                           </td>

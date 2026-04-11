@@ -29,6 +29,7 @@ interface KpiTarget {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedTodayValue: number
+  quotationsIssuedTodayValue: number
 }
 
 interface Activity {
@@ -39,6 +40,7 @@ interface Activity {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedToday: number
+  quotationsIssuedToday: number
 }
 
 const COLORS = ["#10b981", "#f59e0b", "#ef4444", "#6366f1"]
@@ -142,6 +144,7 @@ export default function UserKpiPage() {
       visits: userActivities.reduce((sum, a) => sum + (a.customerVisitsCompleted || 0), 0),
       emails: userActivities.reduce((sum, a) => sum + (a.salesEmailsSent || 0), 0),
       orders: userActivities.reduce((sum, a) => sum + (a.ordersClosedToday || 0), 0),
+      quotations: userActivities.reduce((sum, a) => sum + (a.quotationsIssuedToday || 0), 0),
     }
 
     const calculatePercentage = (achieved: number, targetVal: number) => {
@@ -203,6 +206,15 @@ export default function UserKpiPage() {
         target: target.ordersClosedTodayValue,
         achieved: totalAchieved.orders,
         percentage: calculatePercentage(totalAchieved.orders, target.ordersClosedTodayValue),
+      },
+      {
+        name: "Quotations",
+        icon: Banknote,
+        color: "text-cyan-600",
+        bg: "bg-cyan-50",
+        target: target.quotationsIssuedTodayValue,
+        achieved: totalAchieved.quotations,
+        percentage: calculatePercentage(totalAchieved.quotations, target.quotationsIssuedTodayValue),
       },
     ]
   }, [target, activities, selectedMonth, selectedYear, dateRange, hasDateRange])

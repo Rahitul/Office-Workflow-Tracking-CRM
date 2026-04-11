@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       customerVisitsCompleted,
       salesEmailsSent,
       ordersClosedTodayValue,
+      quotationsIssuedTodayValue,
     } = body
 
     if (!userId || !month || !year) {
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
       existingTarget.customerVisitsCompleted = customerVisitsCompleted ?? existingTarget.customerVisitsCompleted
       existingTarget.salesEmailsSent = salesEmailsSent ?? existingTarget.salesEmailsSent
       existingTarget.ordersClosedTodayValue = ordersClosedTodayValue ?? existingTarget.ordersClosedTodayValue
+      existingTarget.quotationsIssuedTodayValue = quotationsIssuedTodayValue ?? existingTarget.quotationsIssuedTodayValue
       await existingTarget.save()
       return NextResponse.json({ target: existingTarget })
     }
@@ -113,6 +115,7 @@ export async function POST(request: Request) {
       customerVisitsCompleted: customerVisitsCompleted ?? 0,
       salesEmailsSent: salesEmailsSent ?? 0,
       ordersClosedTodayValue: ordersClosedTodayValue ?? 0,
+      quotationsIssuedTodayValue: quotationsIssuedTodayValue ?? 0,
     })
 
     await target.save()

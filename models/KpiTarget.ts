@@ -11,6 +11,7 @@ export interface IKpiTarget extends Document {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedTodayValue: number
+  quotationsIssuedTodayValue: number
   createdAt: Date
   updatedAt: Date
 }
@@ -26,6 +27,7 @@ const KpiTargetSchema = new Schema<IKpiTarget>(
     customerVisitsCompleted: { type: Number, required: true, default: 0 },
     salesEmailsSent: { type: Number, required: true, default: 0 },
     ordersClosedTodayValue: { type: Number, required: true, default: 0 },
+    quotationsIssuedTodayValue: { type: Number, required: true, default: 0 },
   },
   {
     timestamps: true,

@@ -1,16 +1,14 @@
 # iomdaily
 
-## Project
 Full-stack Next.js 16 (App Router), React 19, MongoDB, Tailwind 4.
 
 ## Commands
-- Dev: `npm run dev` (localhost:3000)
-- Build: `npm run build`
-- Start: `npm run start` (production)
-- Lint: `npm run lint` (no typecheck script)
+- `npm run dev` - Dev server (localhost:3000)
+- `npm run build` - Production build
+- `npm run lint` - ESLint (no typecheck)
 
 ## Deployment (192.168.100.3:4001)
-```bash
+```powershell
 pm2 stop iomdaily
 npm run build
 robocopy .next\static .next\standalone\.next\static /E /IS /IT
@@ -18,30 +16,31 @@ pm2 start ecosystem.config.js
 pm2 save
 ```
 
-## Env (.env.local)
-- `MONGODB_URI=mongodb://localhost:27017/iomdaily`
-- `JWT_SECRET`, `JWT_REFRESH_SECRET`
-
 ## Auth
-- JWT tokens in HttpOnly cookies
-- Middleware: `middleware.ts` (runtime: nodejs)
-- Middleware excludes `/api/auth/*`, `/forgot-password`, `/reset-password`, `/login`, `/register`
-
-## Credentials (Register these in the app)
-- **Admin:** admin@iomdaily.com / admin123
-- **User:** user@iomdaily.com / user123
+- JWT in HttpOnly cookies via `middleware.ts` (runtime: nodejs)
+- Excludes: `/api/auth/*`, `/forgot-password`, `/reset-password`, `/login`, `/register`
+- **CRITICAL**: New `/user/*` routes must be added to `middleware.ts` userPaths array
 
 ## Key Files
 - Models: `models/` (User, Form, Response, Activity, KpiTarget)
-- Validations: `lib/validations/` (Zod schemas)
-- API: `app/api/` (NextResponse, connectDB)
-- Forms: `components/forms/` (dnd-kit + React Hook Form)
-- Charts: Recharts direct import
+- API: `app/api/` (use NextResponse, not res.json())
+- Navigation: Hardcoded in `app/*/layout.tsx` navItems arrays
+- UI: `components/ui/` (Button, Card, Input, Select, etc.)
+- Activity form: `app/user/activity/page.tsx` - PRODUCT_OPTIONS array used in multiple sections
 
 ## Gotchas
+- Adding a new page = update route file + layout.tsx navItems + middleware.ts userPaths
+- Adding new product options = update PRODUCT_OPTIONS in `app/user/activity/page.tsx`
 - NextResponse (not res.json())
-- Tailwind 4: no tailwind.config.js, uses `@tailwindcss/postcss`
-- ESLint 9: flat config in eslint.config.mjs
-- Zod 4: z.infer, not z.infer<>
-- useSearchParams needs Suspense boundary
-- Role middleware: admin paths blocked for user role
+- Tailwind 4: no tailwind.config.js
+- Zod 4: z.infer (not z.infer<>)
+- useSearchParams requires Suspense boundary
+- Admin role blocked from `/user/*` paths
+
+## Credentials
+- Admin: admin@iomdaily.com / admin123
+- User: user@iomdaily.com / user123
+
+## Docs
+- `MONGODB-SETUP.md` - MongoDB install guide
+- `deploy.ps1` - PowerShell deployment script

@@ -45,7 +45,7 @@ interface Visit {
   nextActionDate: string
 }
 
-const PRODUCT_OPTIONS = ["MFP / Printer", "MDS", "Barcode / POS", "IT / Infrastructure", "AMC / Consumables"]
+const PRODUCT_OPTIONS = ["MFP / Printer", "MDS", "Barcode", "POS", "IT / Infrastructure", "AMC / Consumables", "Paper Shredder", "Duplicator", "Solutions", "Others"]
 const PURPOSE_OPTIONS = ["Opportunity Advancement", "Opportunity Creation", "Relationship & Account Management", "Commercial / Control", "N/A"]
 const OUTCOME_OPTIONS = ["Advanced / Positive", "Neutral – Follow up required", "Delayed", "Lost / Negative", "N/A"]
 

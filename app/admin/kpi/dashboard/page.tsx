@@ -37,6 +37,7 @@ interface KpiTarget {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedTodayValue: number
+  quotationsIssuedTodayValue: number
 }
 
 interface Activity {
@@ -48,6 +49,7 @@ interface Activity {
   customerVisitsCompleted: number
   salesEmailsSent: number
   ordersClosedToday: number
+  quotationsIssuedToday: number
 }
 
 const COLORS = ["#10b981", "#f59e0b", "#ef4444", "#6366f1"]
@@ -161,16 +163,18 @@ export default function KpiDashboardPage() {
       visits: relevantActivities.reduce((sum, a) => sum + (a.customerVisitsCompleted || 0), 0),
       emails: relevantActivities.reduce((sum, a) => sum + (a.salesEmailsSent || 0), 0),
       orders: relevantActivities.reduce((sum, a) => sum + (a.ordersClosedToday || 0), 0),
+      quotations: relevantActivities.reduce((sum, a) => sum + (a.quotationsIssuedToday || 0), 0),
     }
 
-    const totalTargets = relevantTargets.reduce<{ coldCalls: number; followUpCalls: number; appointments: number; visits: number; emails: number; orders: number }>((acc, t) => ({
+    const totalTargets = relevantTargets.reduce<{ coldCalls: number; followUpCalls: number; appointments: number; visits: number; emails: number; orders: number; quotations: number }>((acc, t) => ({
       coldCalls: acc.coldCalls + t.coldCallsMade,
       followUpCalls: acc.followUpCalls + t.followUpCallsMade,
       appointments: acc.appointments + t.newAppointmentsFixed,
       visits: acc.visits + t.customerVisitsCompleted,
       emails: acc.emails + t.salesEmailsSent,
       orders: acc.orders + t.ordersClosedTodayValue,
-    }), { coldCalls: 0, followUpCalls: 0, appointments: 0, visits: 0, emails: 0, orders: 0 })
+      quotations: acc.quotations + t.quotationsIssuedTodayValue,
+    }), { coldCalls: 0, followUpCalls: 0, appointments: 0, visits: 0, emails: 0, orders: 0, quotations: 0 })
 
     const calculatePercentage = (achieved: number, targetVal: number) => {
       if (targetVal === 0) return achieved > 0 ? 100 : 0
@@ -232,6 +236,15 @@ export default function KpiDashboardPage() {
         achieved: totalAchieved.orders,
         percentage: calculatePercentage(totalAchieved.orders, totalTargets.orders),
       },
+      {
+        name: "Quotations",
+        icon: Banknote,
+        color: "text-cyan-600",
+        bg: "bg-cyan-50",
+        target: totalTargets.quotations,
+        achieved: totalAchieved.quotations,
+        percentage: calculatePercentage(totalAchieved.quotations, totalTargets.quotations),
+      },
     ]
   }, [targets, activities, selectedMonth, selectedYear, dateRange, hasDateRange])
 
@@ -273,6 +286,7 @@ export default function KpiDashboardPage() {
         visits: userActivities.reduce((sum, a) => sum + (a.customerVisitsCompleted || 0), 0),
         emails: userActivities.reduce((sum, a) => sum + (a.salesEmailsSent || 0), 0),
         orders: userActivities.reduce((sum, a) => sum + (a.ordersClosedToday || 0), 0),
+        quotations: userActivities.reduce((sum, a) => sum + (a.quotationsIssuedToday || 0), 0),
       }
 
       const calculatePercentage = (achieved: number, targetVal: number) => {
@@ -334,6 +348,15 @@ export default function KpiDashboardPage() {
           target: target.ordersClosedTodayValue,
           achieved: totalAchieved.orders,
           percentage: calculatePercentage(totalAchieved.orders, target.ordersClosedTodayValue),
+        },
+        {
+          name: "Quotations",
+          icon: Banknote,
+          color: "text-cyan-600",
+          bg: "bg-cyan-50",
+          target: target.quotationsIssuedTodayValue,
+          achieved: totalAchieved.quotations,
+          percentage: calculatePercentage(totalAchieved.quotations, target.quotationsIssuedTodayValue),
         },
       ]
     })

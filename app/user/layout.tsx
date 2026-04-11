@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target } from "lucide-react"
+import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +36,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const navItems = [
     { href: "/user/dashboard", label: "My Forms", icon: ClipboardList },
     { href: "/user/activity", label: "Daily Activity", icon: Activity },
+    { href: "/user/next-day-plan", label: "Next Day Plan", icon: ListTodo },
     { href: "/user/kpi", label: "My KPI", icon: Target },
     { href: "/user/profile", label: "Profile", icon: User },
   ]
