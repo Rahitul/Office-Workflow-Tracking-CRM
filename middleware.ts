@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-i
 interface TokenPayload {
   userId: string
   email: string
-  role: "admin" | "user"
+  role: "admin" | "user" | "accounts"
 }
 
 function verifyAccessToken(token: string): TokenPayload | null {
@@ -27,16 +27,20 @@ export async function middleware(request: NextRequest) {
   
   // Define paths that require authentication
   const adminPaths = ["/admin"]
-  const userPaths = ["/user/dashboard", "/user/forms", "/user/activity", "/user/kpi", "/user/profile", "/user/next-day-plan"]
-  const apiAdminPaths = ["/api/forms", "/api/users", "/api/responses"]
+  const userPaths = ["/user/dashboard", "/user/forms", "/user/activity", "/user/kpi", "/user/profile", "/user/next-day-plan", "/user/appointment-request"]
+  const accountsPaths = ["/accounts/target-setting", "/accounts/daily-sales"]
+  const apiAdminPaths = ["/api/forms", "/api/users", "/api/responses", "/api/appointments"]
+  const apiAccountsPaths = ["/api/sales-targets", "/api/daily-sales"]
   
   // Check if the current path requires authentication
   const { pathname } = request.nextUrl
   
   const isAdminPath = adminPaths.some(path => pathname.startsWith(path))
   const isUserPath = userPaths.some(path => pathname.startsWith(path))
+  const isAccountsPath = accountsPaths.some(path => pathname.startsWith(path))
   const isApiAdminPath = apiAdminPaths.some(path => pathname.startsWith(path))
-  const requiresAuth = isAdminPath || isUserPath || isApiAdminPath
+  const isApiAccountsPath = apiAccountsPaths.some(path => pathname.startsWith(path))
+  const requiresAuth = isAdminPath || isUserPath || isAccountsPath || isApiAdminPath || isApiAccountsPath
   
   // If path doesn't require auth, allow request to proceed
   if (!requiresAuth) {
@@ -77,8 +81,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
   
-  if (isUserPath && payload.role !== "user") {
-    // Admin trying to access user-only pages
+if (isUserPath && payload.role !== "user") {
+    // Admin or Accounts trying to access user-only pages
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -86,7 +90,21 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/admin/dashboard"
     return NextResponse.redirect(url)
   }
-  
+
+  if (isAccountsPath && payload.role !== "accounts" && payload.role !== "admin") {
+    // User trying to access accounts-only pages
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = "/user/dashboard"
+    return NextResponse.redirect(url)
+  }
+
+  if (isApiAccountsPath && payload.role !== "accounts" && payload.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   // If token is valid and role is correct, allow request to proceed
   return NextResponse.next()
 }

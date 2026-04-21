@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import axios from "axios"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Clock, CheckCircle, ClipboardList } from "lucide-react"
+import { FileText, Clock, CheckCircle, ClipboardList, LogOut } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 
 interface Form {
@@ -25,7 +26,8 @@ interface UserResponse {
 }
 
 export default function UserDashboardPage() {
-  const { user } = useAuthStore()
+  const router = useRouter()
+  const { user, checkAuth, logout } = useAuthStore()
   const [forms, setForms] = useState<Form[]>([])
   const [responses, setResponses] = useState<UserResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,6 +59,11 @@ export default function UserDashboardPage() {
     if (!deadline) return false
     return new Date(deadline) < new Date()
   }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
   
   if (loading) {
     return (
@@ -68,9 +75,19 @@ export default function UserDashboardPage() {
   
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">My Forms</h1>
-        <p className="text-slate-500">Welcome back, {user?.name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">My Forms</h1>
+          <p className="text-slate-500">Welcome back, {user?.name}</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={handleLogout}
+          className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

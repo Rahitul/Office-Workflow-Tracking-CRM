@@ -5,10 +5,10 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, FileText, Users, LogOut, Menu, X, ClipboardList, User, Activity, BarChart3, Target, Calendar, Banknote } from "lucide-react"
+import { FileText, LogOut, Menu, X, Target, Banknote } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AccountsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const { user, checkAuth, logout } = useAuthStore()
@@ -23,27 +23,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (mounted && !useAuthStore.getState().isLoading && !user) {
       router.push("/login")
-    } else if (mounted && user && user.role !== "admin") {
-      router.push("/user/dashboard")
+    } else if (mounted && user && user.role !== "accounts" && user.role !== "admin") {
+      router.push("/login")
     }
   }, [mounted, user])
-  
   const handleLogout = async () => {
     await logout()
     router.push("/login")
-  }
+  } 
   
   const navItems = [
-    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/forms", label: "Forms", icon: ClipboardList },
-    { href: "/admin/static-form/responses", label: "Activity Responses", icon: Activity },
-    { href: "/admin/static-form/analytics", label: "Activity Analytics", icon: BarChart3 },
-    { href: "/admin/kpi", label: "KPI Settings", icon: Target },
-    { href: "/admin/kpi/dashboard", label: "KPI Dashboard", icon: Target },
-    { href: "/admin/sales-dashboard", label: "Sales Dashboard", icon: Banknote },
-    { href: "/admin/users", label: "Users", icon: Users },
-    { href: "/admin/appointments", label: "Appointments", icon: Calendar },
-    { href: "/admin/profile", label: "Profile", icon: User },
+    { href: "/accounts/target-setting", label: "Target Setting", icon: Target },
+    { href: "/accounts/daily-sales", label: "Daily Sales", icon: Banknote },
   ]
   
   if (!mounted || (useAuthStore.getState().isLoading && !user)) {
@@ -74,12 +65,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">Admin</h1>
-                <p className="text-xs text-slate-500">Form Builder</p>
+                <h1 className="text-lg font-bold text-slate-900">Accounts</h1>
+                <p className="text-xs text-slate-500">Dashboard</p>
               </div>
             </div>
           </div>
@@ -87,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+              const isActive = pathname === item.href
               return (
                 <Link
                   key={item.href}
@@ -95,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150",
                     isActive 
-                      ? "bg-blue-50 text-blue-700 border border-blue-100" 
+                      ? "bg-amber-50 text-amber-700 border border-amber-100" 
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   )}
                   onClick={() => setSidebarOpen(false)}

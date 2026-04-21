@@ -33,7 +33,7 @@ export default function LoginPage() {
     try {
       const response = await axios.post("/api/auth/login", data, { withCredentials: true })
       const { role } = response.data.user
-      router.push(role === "admin" ? "/admin/dashboard" : "/user/dashboard")
+      router.push(role === "admin" ? "/admin/dashboard" : role === "accounts" ? "/accounts/target-setting" : "/user/dashboard")
     } catch (err: any) {
       setError(err.response?.data?.error || "Login failed. Please try again.")
     } finally {

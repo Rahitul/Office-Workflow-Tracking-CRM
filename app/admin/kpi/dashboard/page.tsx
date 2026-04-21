@@ -181,69 +181,79 @@ export default function KpiDashboardPage() {
       return Math.round((achieved / targetVal) * 100)
     }
 
+    const WORKING_DAYS_PER_MONTH = 30
+    let rangeFactor = 1
+    if (hasDateRange) {
+      const startDate = new Date(dateRange.start)
+      const endDate = new Date(dateRange.end)
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+      rangeFactor = diffDays / WORKING_DAYS_PER_MONTH
+    }
+
     return [
       {
         name: "Cold Calls",
         icon: Phone,
         color: "text-blue-500",
         bg: "bg-blue-50",
-        target: totalTargets.coldCalls,
+        target: Math.round(totalTargets.coldCalls * rangeFactor),
         achieved: totalAchieved.coldCalls,
-        percentage: calculatePercentage(totalAchieved.coldCalls, totalTargets.coldCalls),
+        percentage: calculatePercentage(totalAchieved.coldCalls, Math.round(totalTargets.coldCalls * rangeFactor)),
       },
       {
         name: "Follow-up Calls",
         icon: Phone,
         color: "text-amber-500",
         bg: "bg-amber-50",
-        target: totalTargets.followUpCalls,
+        target: Math.round(totalTargets.followUpCalls * rangeFactor),
         achieved: totalAchieved.followUpCalls,
-        percentage: calculatePercentage(totalAchieved.followUpCalls, totalTargets.followUpCalls),
+        percentage: calculatePercentage(totalAchieved.followUpCalls, Math.round(totalTargets.followUpCalls * rangeFactor)),
       },
       {
         name: "Appointments",
         icon: Calendar,
         color: "text-emerald-500",
         bg: "bg-emerald-50",
-        target: totalTargets.appointments,
+        target: Math.round(totalTargets.appointments * rangeFactor),
         achieved: totalAchieved.appointments,
-        percentage: calculatePercentage(totalAchieved.appointments, totalTargets.appointments),
+        percentage: calculatePercentage(totalAchieved.appointments, Math.round(totalTargets.appointments * rangeFactor)),
       },
       {
         name: "Visits",
         icon: Users,
         color: "text-purple-500",
         bg: "bg-purple-50",
-        target: totalTargets.visits,
+        target: Math.round(totalTargets.visits * rangeFactor),
         achieved: totalAchieved.visits,
-        percentage: calculatePercentage(totalAchieved.visits, totalTargets.visits),
+        percentage: calculatePercentage(totalAchieved.visits, Math.round(totalTargets.visits * rangeFactor)),
       },
       {
         name: "Emails",
         icon: Mail,
         color: "text-rose-500",
         bg: "bg-rose-50",
-        target: totalTargets.emails,
+        target: Math.round(totalTargets.emails * rangeFactor),
         achieved: totalAchieved.emails,
-        percentage: calculatePercentage(totalAchieved.emails, totalTargets.emails),
+        percentage: calculatePercentage(totalAchieved.emails, Math.round(totalTargets.emails * rangeFactor)),
       },
       {
         name: "Orders",
         icon: Banknote,
         color: "text-emerald-600",
         bg: "bg-emerald-50",
-        target: totalTargets.orders,
+        target: Math.round(totalTargets.orders * rangeFactor),
         achieved: totalAchieved.orders,
-        percentage: calculatePercentage(totalAchieved.orders, totalTargets.orders),
+        percentage: calculatePercentage(totalAchieved.orders, Math.round(totalTargets.orders * rangeFactor)),
       },
       {
         name: "Quotations",
         icon: Banknote,
         color: "text-cyan-600",
         bg: "bg-cyan-50",
-        target: totalTargets.quotations,
+        target: Math.round(totalTargets.quotations * rangeFactor),
         achieved: totalAchieved.quotations,
-        percentage: calculatePercentage(totalAchieved.quotations, totalTargets.quotations),
+        percentage: calculatePercentage(totalAchieved.quotations, Math.round(totalTargets.quotations * rangeFactor)),
       },
     ]
   }, [targets, activities, selectedMonth, selectedYear, dateRange, hasDateRange])
@@ -294,69 +304,79 @@ export default function KpiDashboardPage() {
         return Math.round((achieved / targetVal) * 100)
       }
 
+      const WORKING_DAYS_PER_MONTH = 30
+      let rangeFactor = 1
+      if (hasDateRange) {
+        const startDate = new Date(dateRange.start)
+        const endDate = new Date(dateRange.end)
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+        rangeFactor = diffDays / WORKING_DAYS_PER_MONTH
+      }
+
       userMetrics[userId] = [
         {
           name: "Cold Calls",
           icon: Phone,
           color: "text-blue-500",
           bg: "bg-blue-50",
-          target: target.coldCallsMade,
+          target: Math.round(target.coldCallsMade * rangeFactor),
           achieved: totalAchieved.coldCalls,
-          percentage: calculatePercentage(totalAchieved.coldCalls, target.coldCallsMade),
+          percentage: calculatePercentage(totalAchieved.coldCalls, Math.round(target.coldCallsMade * rangeFactor)),
         },
         {
           name: "Follow-up Calls",
           icon: Phone,
           color: "text-amber-500",
           bg: "bg-amber-50",
-          target: target.followUpCallsMade,
+          target: Math.round(target.followUpCallsMade * rangeFactor),
           achieved: totalAchieved.followUpCalls,
-          percentage: calculatePercentage(totalAchieved.followUpCalls, target.followUpCallsMade),
+          percentage: calculatePercentage(totalAchieved.followUpCalls, Math.round(target.followUpCallsMade * rangeFactor)),
         },
         {
           name: "Appointments",
           icon: Calendar,
           color: "text-emerald-500",
           bg: "bg-emerald-50",
-          target: target.newAppointmentsFixed,
+          target: Math.round(target.newAppointmentsFixed * rangeFactor),
           achieved: totalAchieved.appointments,
-          percentage: calculatePercentage(totalAchieved.appointments, target.newAppointmentsFixed),
+          percentage: calculatePercentage(totalAchieved.appointments, Math.round(target.newAppointmentsFixed * rangeFactor)),
         },
         {
           name: "Visits",
           icon: Users,
           color: "text-purple-500",
           bg: "bg-purple-50",
-          target: target.customerVisitsCompleted,
+          target: Math.round(target.customerVisitsCompleted * rangeFactor),
           achieved: totalAchieved.visits,
-          percentage: calculatePercentage(totalAchieved.visits, target.customerVisitsCompleted),
+          percentage: calculatePercentage(totalAchieved.visits, Math.round(target.customerVisitsCompleted * rangeFactor)),
         },
         {
           name: "Emails",
           icon: Mail,
           color: "text-rose-500",
           bg: "bg-rose-50",
-          target: target.salesEmailsSent,
+          target: Math.round(target.salesEmailsSent * rangeFactor),
           achieved: totalAchieved.emails,
-          percentage: calculatePercentage(totalAchieved.emails, target.salesEmailsSent),
+          percentage: calculatePercentage(totalAchieved.emails, Math.round(target.salesEmailsSent * rangeFactor)),
         },
         {
           name: "Orders",
           icon: Banknote,
           color: "text-emerald-600",
           bg: "bg-emerald-50",
-          target: target.ordersClosedTodayValue,
+          target: Math.round(target.ordersClosedTodayValue * rangeFactor),
           achieved: totalAchieved.orders,
-          percentage: calculatePercentage(totalAchieved.orders, target.ordersClosedTodayValue),
+          percentage: calculatePercentage(totalAchieved.orders, Math.round(target.ordersClosedTodayValue * rangeFactor)),
         },
         {
           name: "Quotations",
           icon: Banknote,
           color: "text-cyan-600",
           bg: "bg-cyan-50",
-          target: target.quotationsIssuedTodayValue,
+          target: Math.round(target.quotationsIssuedTodayValue * rangeFactor),
           achieved: totalAchieved.quotations,
-          percentage: calculatePercentage(totalAchieved.quotations, target.quotationsIssuedTodayValue),
+          percentage: calculatePercentage(totalAchieved.quotations, Math.round(target.quotationsIssuedTodayValue * rangeFactor)),
         },
       ]
     })

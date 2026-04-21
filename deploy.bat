@@ -56,6 +56,7 @@ timeout /t 3 /nobreak >nul
 REM Set working directory
 set WORKDIR=H:\iomdaily
 cd /d %WORKDIR%
+echo Working directory set to: %CD%
 
 echo [Step 3] Stopping PM2 app (if running)...
 pm2 stop iomdaily 2>nul

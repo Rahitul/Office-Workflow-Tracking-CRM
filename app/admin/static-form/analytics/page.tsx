@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Phone, Calendar, Users, Mail, BarChart3, Search, Filter, DollarSign, Target, ListTodo, ChevronDown, ChevronUp, Eye, CheckCircle } from "lucide-react"
+import { Phone, Calendar, Users, Mail, BarChart3, Search, Filter, Banknote, Target, ListTodo, ChevronDown, ChevronUp, Eye, CheckCircle } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -307,7 +307,7 @@ export default function AnalyticsPage() {
               { label: "Appts", value: analytics.totals.appointments, icon: Calendar, color: "text-emerald-600", bg: "bg-emerald-50" },
               { label: "Visits", value: analytics.totals.visits, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Emails", value: analytics.totals.emails, icon: Mail, color: "text-rose-600", bg: "bg-rose-50" },
-              { label: "Quotes (BDT)", value: analytics.totals.quotations.toLocaleString(), icon: DollarSign, color: "text-indigo-600", bg: "bg-indigo-50" },
+              { label: "Quotes (BDT)", value: analytics.totals.quotations.toLocaleString(), icon: Banknote, color: "text-indigo-600", bg: "bg-indigo-50" },
               { label: "Orders (BDT)", value: analytics.totals.orders.toLocaleString(), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
             ].map((stat, i) => (
               <Card key={i} className="border-slate-200 shadow-sm">

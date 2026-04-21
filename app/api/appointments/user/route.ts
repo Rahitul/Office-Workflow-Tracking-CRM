@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { connectDB } from "@/lib/db"
-import { User } from "@/models/User"
+import { Appointment } from "@/models/Appointment"
+import { AppointmentForm } from "@/models/AppointmentForm"
 import { verifyAccessToken } from "@/lib/auth"
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     await connectDB()
     
@@ -16,27 +17,22 @@ export async function GET(request: Request) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    
-    if (payload.role !== "admin" && payload.role !== "accounts") {
+    if (!payload || payload.role !== "user") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-
-    const { searchParams } = new URL(request.url)
-    const roleFilter = searchParams.get("role")
-
-    const query: Record<string, unknown> = {}
-    if (roleFilter) {
-      query.role = roleFilter
-    }
     
-    const users = await User.find(query).select("-passwordHash").sort({ createdAt: -1 })
+    const appointments = await Appointment.find({
+      $or: [
+        { createdBy: payload.userId },
+        { isRequested: true, requestedBy: payload.userId }
+      ]
+    })
+      .sort({ date: -1, createdAt: -1 })
+      .populate("formData")
     
-    return NextResponse.json({ users })
+    return NextResponse.json({ appointments })
   } catch (error: any) {
-    console.error("Get users error:", error)
+    console.error("Get user appointments error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

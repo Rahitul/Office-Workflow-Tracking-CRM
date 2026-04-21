@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo } from "lucide-react"
+import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +35,8 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   
   const navItems = [
     { href: "/user/dashboard", label: "My Forms", icon: ClipboardList },
+    { href: "/user/appointment-request", label: "Request Appointment", icon: Calendar },
+    { href: "/user/appointment-request/list", label: "My Appointments", icon: ListTodo },
     { href: "/user/activity", label: "Daily Activity", icon: Activity },
     { href: "/user/next-day-plan", label: "Next Day Plan", icon: ListTodo },
     { href: "/user/kpi", label: "My KPI", icon: Target },
@@ -79,7 +81,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href

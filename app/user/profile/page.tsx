@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, User, Mail, Save, Loader2, Upload } from "lucide-react"
+import { ArrowLeft, User, Mail, Save, Loader2, Upload, LogOut } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 
 export default function UserProfilePage() {
   const router = useRouter()
-  const { user, checkAuth } = useAuthStore()
+  const { user, checkAuth, logout } = useAuthStore()
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
   const [saving, setSaving] = useState(false)
@@ -57,17 +57,32 @@ export default function UserProfilePage() {
       setSaving(false)
     }
   }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
   
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/user/dashboard")} className="hover:bg-slate-100">
-          <ArrowLeft size={20} className="text-slate-600" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
-          <p className="text-slate-500">Manage your account</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/user/dashboard")} className="hover:bg-slate-100">
+            <ArrowLeft size={20} className="text-slate-600" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
+            <p className="text-slate-500">Manage your account</p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          onClick={handleLogout}
+          className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
       </div>
       
       <Card className="border-slate-200 shadow-sm">
