@@ -1,0 +1,24 @@
+first read and understand the appointment page in admin app (there admin can set a appointment for himself and can see and complete).now i want that system that, from the user app, user can also request a appointment(in the admin app the admin is our Managing Director and the users are our Employee of our company, so user can request a appointment with other company's Managing director or any other employees). in the page do that system that admin can see his to do list and requested to do list separately. ok first do that system in user app that in a new section request appointment, when user click on the tab first user should be fill up a form first
+
+Now i tell you about the form, the form will have 9 part
+1st part (BASIC ACCOUNT INFORMATION): in this part there will be "Customer / Organization Name" , "Industry / Business Type"(there will be dropdown: Banking / Financial Services, Government / PSU, Manufacturing, Telecom, FMCG, Education, Logistics / Warehouse, Others(When user tap on others he should enter a specific answer)) , "Customer Size"(there will be dropdown: Enterprise, Medium, Small), "Customer Head Office Location" , "IOM Account Owner Name", "Account Owner Designation & Department", "Relationship Start Year with IOM" 
+
+2nd Part (CUSTOMER TOP MANAGEMENT DETAILS): "Proposed Customer Meeting Attendee(s)" , "Customer Decision Maker (Final Authority)", "Influencer(s) / User Head(s)" , "Any Personal / Prior Relationship at CEO–CXO Level?" (in there there will be dropdown: Yes, No , Others(if others selected then user should give a answer)
+
+3rd Part (CURRENT BUSINESS WITH IOM): "Total Revenue", "Products / Solutions Currently Supplied by IOM" (there will be checkbox: Toshiba MFP, Managed Document Services (MDS), Auto ID / Barcode, IT Infrastructure, Fault Tolerant Server Solution, Spare Parts / Consumables, Others(if others selected then user should give a answer), "Current Contract Type" (There will be checkbox:AMC, MDS, Transactional, Project based, No active contract), "Total Business Value with IOM (Last 3 Years)", "Current Year Business (YTD)"
+
+4th Part ( FINANCIAL & CREDIT STATUS (FROM ACCOUNTS)): "Current Outstanding Amount (BDT)", "Overdue Amount (If Any)" , "Average Payment Cycle"(there will be radio button: Within Credit Period, 1–30 days overdue, 31–60 days overdue, 60+ days overdue), "Any Credit / Payment Risk?"( there will be radio button: Yes(if yes selected then should give a answer), NO, Others(if yes selected then should give a answer))
+
+5th part (SERVICE & SUPPORT STATUS):"Installed Base (Machines / Systems at Customer Site)", "Current Service Status"(there should be a radio button :Satisfactory, Minor Issues, Repeated Complaints, Critical Escalations), "Open Service Issues (If Any)", "Escalations at Customer End?" (there will be a radio button: Yes(if yes selected then should give a answer), NO, Others(if yes selected then should give a answer))
+
+6th Part (STRATEGIC OPPORTUNITIES): "Primary Purpose of CEO / CXO Meeting"(there will be check box : Relationship Strengthening, Issue Resolution / Escalation, Business Expansion, New Solution Introduction, Contract Renewal, Competitive Threat, Executive Courtesy Call), "Expected Business Opportunity Value (Next 12–24 Months)", "Key New Solutions to be Proposed"   
+
+7th Part(COMPETITION & RISKS): "Incumbent / Competing Vendors at Customer"(eg: Ricoh, Sharp, Konica, Others),"Threat Level to IOM Business" (there will radio button: Low, Medium, High), "Risk Factors (Price / Service / Relationship / Grey Market etc.)"
+
+8th part(CEO PRE‑READ & EXPECTATION): "Key Talking Points for CEO",  "What Support Is Required from IOM CEO?", "Expected Outcome from This Meeting"
+
+9th part: (INTERNAL CONFIRMATION & DECLARATION): "All Information Verified with Accounts & Service?"(there will be radio button : Yes, No), "Account Owner Declaration"(there will be checkbox :I confirm that the above information is accurate and verified with all internal stakeholders.)
+
+after the form when user submit the form then he will redirect the exact same kind form which is in the admin app in the appointment page, In the form user can fill all the feilds and send request to the admin( Managing director), in the redirected form user can see the admin's all (his own and requested) appointment list, so that user can request the admin free time to set appoinrments and then he user submit it in the admin app there wwill be a system that admin can see all the info user submitted and anappove or reject the appointment. when appove the appoint list will add in the to do list in the admin appionment page and admin can see all the from info in the list card, initially it will hiddeln when tap on the card it will expand and can see all the info.
+
+remember do not change, add , remove or modify any logics and UI , only do what i say, and then read the AGENTS.md and deploy.bat file and deploy it in the 192.168.100.3:4001 server again.  

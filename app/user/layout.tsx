@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo, Calendar } from "lucide-react"
+import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo, Calendar, GraduationCap, ArrowRightLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -25,8 +25,18 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       router.push("/login")
     } else if (mounted && user && user.role === "admin") {
       router.push("/admin/dashboard")
+    } else if (mounted && user && user.role === "accounts") {
+      router.push("/accounts/target-setting")
+    } else if (mounted && user && user.role === "esbd") {
+      router.push("/esbd/dashboard")
+    } else if (mounted && user && user.role === "service") {
+      router.push("/service/dashboard")
+    } else if (mounted && user && user.role === "marketing") {
+      router.push("/marketing/dashboard")
+    } else if (mounted && user && user.role === "consumable") {
+      router.push("/consumable/lead-transfer")
     }
-  }, [mounted, user])
+  }, [mounted, user, checkAuth])
   
   const handleLogout = async () => {
     await logout()
@@ -35,11 +45,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   
   const navItems = [
     { href: "/user/dashboard", label: "My Forms", icon: ClipboardList },
+    { href: "/user/trainings", label: "My Trainings", icon: GraduationCap },
     { href: "/user/appointment-request", label: "Request Appointment", icon: Calendar },
     { href: "/user/appointment-request/list", label: "My Appointments", icon: ListTodo },
     { href: "/user/activity", label: "Daily Activity", icon: Activity },
     { href: "/user/next-day-plan", label: "Next Day Plan", icon: ListTodo },
     { href: "/user/kpi", label: "My KPI", icon: Target },
+    { href: "/user/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
     { href: "/user/profile", label: "Profile", icon: User },
   ]
   

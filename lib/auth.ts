@@ -10,7 +10,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-super-secret-
 export interface TokenPayload {
   userId: string
   email: string
-  role: "admin" | "user" | "accounts"
+  role: "admin" | "user" | "accounts" | "service" | "esbd" | "marketing" | "consumable" | "logistics"
 }
 
 export interface RefreshPayload {

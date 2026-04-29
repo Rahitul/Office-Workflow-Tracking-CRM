@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, FileText, Users, LogOut, Menu, X, ClipboardList, User, Activity, BarChart3, Target, Calendar, Banknote } from "lucide-react"
+import { LayoutDashboard, FileText, Users, LogOut, Menu, X, ClipboardList, User, Activity, BarChart3, Target, Calendar, Banknote, ArrowRightLeft, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -26,7 +26,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } else if (mounted && user && user.role !== "admin") {
       router.push("/user/dashboard")
     }
-  }, [mounted, user])
+  }, [mounted, user, checkAuth])
   
   const handleLogout = async () => {
     await logout()
@@ -43,6 +43,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/sales-dashboard", label: "Sales Dashboard", icon: Banknote },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/appointments", label: "Appointments", icon: Calendar },
+    { href: "/admin/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
+    { href: "/admin/assigned-training", label: "Assigned Training", icon: GraduationCap },
     { href: "/admin/profile", label: "Profile", icon: User },
   ]
   

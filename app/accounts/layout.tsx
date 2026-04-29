@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, Target, Banknote } from "lucide-react"
+import { FileText, LogOut, Menu, X, Target, Banknote, ArrowRightLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function AccountsLayout({ children }: { children: React.ReactNode }) {
@@ -24,9 +24,9 @@ export default function AccountsLayout({ children }: { children: React.ReactNode
     if (mounted && !useAuthStore.getState().isLoading && !user) {
       router.push("/login")
     } else if (mounted && user && user.role !== "accounts" && user.role !== "admin") {
-      router.push("/login")
+      router.push("/user/dashboard")
     }
-  }, [mounted, user])
+  }, [mounted, user, checkAuth])
   const handleLogout = async () => {
     await logout()
     router.push("/login")
@@ -35,6 +35,7 @@ export default function AccountsLayout({ children }: { children: React.ReactNode
   const navItems = [
     { href: "/accounts/target-setting", label: "Target Setting", icon: Target },
     { href: "/accounts/daily-sales", label: "Daily Sales", icon: Banknote },
+    { href: "/accounts/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
   ]
   
   if (!mounted || (useAuthStore.getState().isLoading && !user)) {

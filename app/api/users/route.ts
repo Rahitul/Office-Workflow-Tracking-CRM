@@ -20,19 +20,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     
-    if (payload.role !== "admin" && payload.role !== "accounts") {
+    const allowedRoles = ["admin", "accounts", "esbd", "consumable", "user", "service", "marketing"]
+    if (!allowedRoles.includes(payload.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const roleFilter = searchParams.get("role")
-
-    const query: Record<string, unknown> = {}
-    if (roleFilter) {
-      query.role = roleFilter
-    }
-    
-    const users = await User.find(query).select("-passwordHash").sort({ createdAt: -1 })
+    const users = await User.find().select("-passwordHash").sort({ createdAt: -1 })
     
     return NextResponse.json({ users })
   } catch (error: any) {
