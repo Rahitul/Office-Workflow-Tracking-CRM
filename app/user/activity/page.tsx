@@ -66,6 +66,23 @@ export default function ActivityPage() {
   const [visits, setVisits] = useState<Visit[]>([])
   const [quotationsIssuedToday, setQuotationsIssuedToday] = useState(0)
   const [ordersClosedToday, setOrdersClosedToday] = useState(0)
+  const [orderValueMfp, setOrderValueMfp] = useState(0)
+  const [orderValueMps, setOrderValueMps] = useState(0)
+  const [orderValueBarcodePrinters, setOrderValueBarcodePrinters] = useState(0)
+  const [orderValuePaperShredder, setOrderValuePaperShredder] = useState(0)
+  const [orderValueDuplicator, setOrderValueDuplicator] = useState(0)
+  const [orderValueBarcodeScanner, setOrderValueBarcodeScanner] = useState(0)
+  const [orderValueSolutions, setOrderValueSolutions] = useState(0)
+  const [orderValueTender, setOrderValueTender] = useState(0)
+  const [billsClosedToday, setBillsClosedToday] = useState(0)
+  const [billValueMfp, setBillValueMfp] = useState(0)
+  const [billValueMps, setBillValueMps] = useState(0)
+  const [billValueBarcodePrinters, setBillValueBarcodePrinters] = useState(0)
+  const [billValuePaperShredder, setBillValuePaperShredder] = useState(0)
+  const [billValueDuplicator, setBillValueDuplicator] = useState(0)
+  const [billValueBarcodeScanner, setBillValueBarcodeScanner] = useState(0)
+  const [billValueSolutions, setBillValueSolutions] = useState(0)
+  const [billValueTender, setBillValueTender] = useState(0)
   const [tomorrowPlan, setTomorrowPlan] = useState("")
 
   const [loading, setLoading] = useState(false)
@@ -139,6 +156,23 @@ export default function ActivityPage() {
         visits,
         quotationsIssuedToday,
         ordersClosedToday,
+        orderValueMfp,
+        orderValueMps,
+        orderValueBarcodePrinters,
+        orderValuePaperShredder,
+        orderValueDuplicator,
+        orderValueBarcodeScanner,
+        orderValueSolutions,
+        orderValueTender,
+        billsClosedToday,
+        billValueMfp,
+        billValueMps,
+        billValueBarcodePrinters,
+        billValuePaperShredder,
+        billValueDuplicator,
+        billValueBarcodeScanner,
+        billValueSolutions,
+        billValueTender,
         tomorrowPlan,
       }, { withCredentials: true })
 
@@ -154,6 +188,23 @@ export default function ActivityPage() {
       setVisits([])
       setQuotationsIssuedToday(0)
       setOrdersClosedToday(0)
+      setOrderValueMfp(0)
+      setOrderValueMps(0)
+      setOrderValueBarcodePrinters(0)
+      setOrderValuePaperShredder(0)
+      setOrderValueDuplicator(0)
+      setOrderValueBarcodeScanner(0)
+      setOrderValueSolutions(0)
+      setOrderValueTender(0)
+      setBillsClosedToday(0)
+      setBillValueMfp(0)
+      setBillValueMps(0)
+      setBillValueBarcodePrinters(0)
+      setBillValuePaperShredder(0)
+      setBillValueDuplicator(0)
+      setBillValueBarcodeScanner(0)
+      setBillValueSolutions(0)
+      setBillValueTender(0)
       setTomorrowPlan("")
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error: any) {
@@ -550,7 +601,7 @@ export default function ActivityPage() {
           </div>
           <Card className="border-slate-200 shadow-sm border-t-2 border-t-emerald-500">
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="space-y-3">
                   <Label htmlFor="quotations" className="text-sm font-semibold text-slate-700 uppercase tracking-wider block">
                     Total Quotations Issued Today
@@ -584,11 +635,124 @@ export default function ActivityPage() {
                       onChange={(e) => setOrdersClosedToday(parseInt(e.target.value) || 0)}
                       className="pl-8 h-12 text-lg font-bold border-slate-200 focus:border-emerald-500 transition-all shadow-none bg-slate-50/30"
                       placeholder="0.00"
+                      readOnly
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 italic">Enter the cumulative value in BDT</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="bills" className="text-sm font-semibold text-slate-700 uppercase tracking-wider block">
+                    Total Bills Closed Today
+                  </Label>
+                  <div className="relative group transition-all">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold group-focus-within:text-amber-500 transition-colors">৳</span>
+                    <Input
+                      id="bills"
+                      type="number"
+                      min="0"
+                      readOnly
+                      value={billsClosedToday}
+                      onChange={(e) => setBillsClosedToday(parseInt(e.target.value) || 0)}
+                      className="pl-8 h-12 text-lg font-bold border-slate-200 focus:border-amber-500 transition-all shadow-none bg-slate-50/30"
+                      placeholder="0.00"
                     />
                   </div>
                   <p className="text-[10px] text-slate-500 italic">Enter the cumulative value in BDT</p>
                 </div>
               </div>
+
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-emerald-600" />
+                    Order Value Breakdown by Product
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[
+                      { key: "orderValueMfp", label: "MFP", setter: setOrderValueMfp, value: orderValueMfp },
+                      { key: "orderValueMps", label: "MPS", setter: setOrderValueMps, value: orderValueMps },
+                      { key: "orderValueBarcodePrinters", label: "Barcode Printers", setter: setOrderValueBarcodePrinters, value: orderValueBarcodePrinters },
+                      { key: "orderValuePaperShredder", label: "Paper Shredder", setter: setOrderValuePaperShredder, value: orderValuePaperShredder },
+                      { key: "orderValueDuplicator", label: "Duplicator", setter: setOrderValueDuplicator, value: orderValueDuplicator },
+                      { key: "orderValueBarcodeScanner", label: "Barcode Scanner / POS", setter: setOrderValueBarcodeScanner, value: orderValueBarcodeScanner },
+                      { key: "orderValueSolutions", label: "Solutions", setter: setOrderValueSolutions, value: orderValueSolutions },
+                      { key: "orderValueTender", label: "Tender", setter: setOrderValueTender, value: orderValueTender },
+                    ].map((item) => (
+                      <div key={item.key} className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">৳</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.value}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0
+                              item.setter(val)
+                              const sum = (item.key === "orderValueMfp" ? val : orderValueMfp) +
+                                (item.key === "orderValueMps" ? val : orderValueMps) +
+                                (item.key === "orderValueBarcodePrinters" ? val : orderValueBarcodePrinters) +
+                                (item.key === "orderValuePaperShredder" ? val : orderValuePaperShredder) +
+                                (item.key === "orderValueDuplicator" ? val : orderValueDuplicator) +
+                                (item.key === "orderValueBarcodeScanner" ? val : orderValueBarcodeScanner) +
+                                (item.key === "orderValueSolutions" ? val : orderValueSolutions) +
+                                (item.key === "orderValueTender" ? val : orderValueTender)
+                              setOrdersClosedToday(sum)
+                            }}
+                            className="pl-8 h-10 text-sm font-semibold border-slate-200 focus:border-emerald-500 transition-all shadow-none bg-slate-50/30"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-amber-600" />
+                    Bill Value Breakdown by Product
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[
+                      { key: "billValueMfp", label: "MFP", setter: setBillValueMfp, value: billValueMfp },
+                      { key: "billValueMps", label: "MPS", setter: setBillValueMps, value: billValueMps },
+                      { key: "billValueBarcodePrinters", label: "Barcode Printers", setter: setBillValueBarcodePrinters, value: billValueBarcodePrinters },
+                      { key: "billValuePaperShredder", label: "Paper Shredder", setter: setBillValuePaperShredder, value: billValuePaperShredder },
+                      { key: "billValueDuplicator", label: "Duplicator", setter: setBillValueDuplicator, value: billValueDuplicator },
+                      { key: "billValueBarcodeScanner", label: "Barcode Scanner / POS", setter: setBillValueBarcodeScanner, value: billValueBarcodeScanner },
+                      { key: "billValueSolutions", label: "Solutions", setter: setBillValueSolutions, value: billValueSolutions },
+                      { key: "billValueTender", label: "Tender", setter: setBillValueTender, value: billValueTender },
+                    ].map((item) => (
+                      <div key={item.key} className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">৳</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.value}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0
+                              item.setter(val)
+                              const sum = (item.key === "billValueMfp" ? val : billValueMfp) +
+                                (item.key === "billValueMps" ? val : billValueMps) +
+                                (item.key === "billValueBarcodePrinters" ? val : billValueBarcodePrinters) +
+                                (item.key === "billValuePaperShredder" ? val : billValuePaperShredder) +
+                                (item.key === "billValueDuplicator" ? val : billValueDuplicator) +
+                                (item.key === "billValueBarcodeScanner" ? val : billValueBarcodeScanner) +
+                                (item.key === "billValueSolutions" ? val : billValueSolutions) +
+                                (item.key === "billValueTender" ? val : billValueTender)
+                              setBillsClosedToday(sum)
+                            }}
+                            className="pl-8 h-10 text-sm font-semibold border-slate-200 focus:border-amber-500 transition-all shadow-none bg-slate-50/30"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
             </CardContent>
           </Card>
         </section>

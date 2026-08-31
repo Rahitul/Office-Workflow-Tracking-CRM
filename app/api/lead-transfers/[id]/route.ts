@@ -12,11 +12,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     
     const body = await request.json()
-    const { status } = body
-    
+    const { status, remarks } = body
+
     const lead = await LeadTransfer.findByIdAndUpdate(
       id,
-      { status },
+      { status, ...(remarks !== undefined ? { remarks } : {}) },
       { new: true }
     ).lean()
     

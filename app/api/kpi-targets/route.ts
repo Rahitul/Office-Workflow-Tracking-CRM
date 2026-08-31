@@ -81,6 +81,23 @@ export async function POST(request: Request) {
       salesEmailsSent,
       ordersClosedTodayValue,
       quotationsIssuedTodayValue,
+      orderValueMfp,
+      orderValueMps,
+      orderValueBarcodePrinters,
+      orderValuePaperShredder,
+      orderValueDuplicator,
+      orderValueBarcodeScanner,
+      orderValueSolutions,
+      orderValueTender,
+      billsClosedTodayValue,
+      billValueMfp,
+      billValueMps,
+      billValueBarcodePrinters,
+      billValuePaperShredder,
+      billValueDuplicator,
+      billValueBarcodeScanner,
+      billValueSolutions,
+      billValueTender,
     } = body
 
     if (!userId || !month || !year) {
@@ -101,6 +118,23 @@ export async function POST(request: Request) {
       existingTarget.salesEmailsSent = salesEmailsSent ?? existingTarget.salesEmailsSent
       existingTarget.ordersClosedTodayValue = ordersClosedTodayValue ?? existingTarget.ordersClosedTodayValue
       existingTarget.quotationsIssuedTodayValue = quotationsIssuedTodayValue ?? existingTarget.quotationsIssuedTodayValue
+      existingTarget.orderValueMfp = orderValueMfp ?? existingTarget.orderValueMfp
+      existingTarget.orderValueMps = orderValueMps ?? existingTarget.orderValueMps
+      existingTarget.orderValueBarcodePrinters = orderValueBarcodePrinters ?? existingTarget.orderValueBarcodePrinters
+      existingTarget.orderValuePaperShredder = orderValuePaperShredder ?? existingTarget.orderValuePaperShredder
+      existingTarget.orderValueDuplicator = orderValueDuplicator ?? existingTarget.orderValueDuplicator
+      existingTarget.orderValueBarcodeScanner = orderValueBarcodeScanner ?? existingTarget.orderValueBarcodeScanner
+      existingTarget.orderValueSolutions = orderValueSolutions ?? existingTarget.orderValueSolutions
+      existingTarget.orderValueTender = orderValueTender ?? existingTarget.orderValueTender
+      existingTarget.billsClosedTodayValue = billsClosedTodayValue ?? existingTarget.billsClosedTodayValue
+      existingTarget.billValueMfp = billValueMfp ?? existingTarget.billValueMfp
+      existingTarget.billValueMps = billValueMps ?? existingTarget.billValueMps
+      existingTarget.billValueBarcodePrinters = billValueBarcodePrinters ?? existingTarget.billValueBarcodePrinters
+      existingTarget.billValuePaperShredder = billValuePaperShredder ?? existingTarget.billValuePaperShredder
+      existingTarget.billValueDuplicator = billValueDuplicator ?? existingTarget.billValueDuplicator
+      existingTarget.billValueBarcodeScanner = billValueBarcodeScanner ?? existingTarget.billValueBarcodeScanner
+      existingTarget.billValueSolutions = billValueSolutions ?? existingTarget.billValueSolutions
+      existingTarget.billValueTender = billValueTender ?? existingTarget.billValueTender
       await existingTarget.save()
       return NextResponse.json({ target: existingTarget })
     }
@@ -116,6 +150,23 @@ export async function POST(request: Request) {
       salesEmailsSent: salesEmailsSent ?? 0,
       ordersClosedTodayValue: ordersClosedTodayValue ?? 0,
       quotationsIssuedTodayValue: quotationsIssuedTodayValue ?? 0,
+      orderValueMfp: orderValueMfp ?? 0,
+      orderValueMps: orderValueMps ?? 0,
+      orderValueBarcodePrinters: orderValueBarcodePrinters ?? 0,
+      orderValuePaperShredder: orderValuePaperShredder ?? 0,
+      orderValueDuplicator: orderValueDuplicator ?? 0,
+      orderValueBarcodeScanner: orderValueBarcodeScanner ?? 0,
+      orderValueSolutions: orderValueSolutions ?? 0,
+      orderValueTender: orderValueTender ?? 0,
+      billsClosedTodayValue: billsClosedTodayValue ?? 0,
+      billValueMfp: billValueMfp ?? 0,
+      billValueMps: billValueMps ?? 0,
+      billValueBarcodePrinters: billValueBarcodePrinters ?? 0,
+      billValuePaperShredder: billValuePaperShredder ?? 0,
+      billValueDuplicator: billValueDuplicator ?? 0,
+      billValueBarcodeScanner: billValueBarcodeScanner ?? 0,
+      billValueSolutions: billValueSolutions ?? 0,
+      billValueTender: billValueTender ?? 0,
     })
 
     await target.save()

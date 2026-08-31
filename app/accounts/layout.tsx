@@ -5,8 +5,9 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, Target, Banknote, ArrowRightLeft } from "lucide-react"
+import { FileText, LogOut, Menu, X, Target, Banknote, ArrowRightLeft, Wallet, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import NotificationBell from "@/components/notification-bell"
 
 export default function AccountsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -33,8 +34,13 @@ export default function AccountsLayout({ children }: { children: React.ReactNode
   } 
   
   const navItems = [
-    { href: "/accounts/target-setting", label: "Target Setting", icon: Target },
+    { href: "/accounts/target-setting", label: "Sales Target Setting", icon: Target },
     { href: "/accounts/daily-sales", label: "Daily Sales", icon: Banknote },
+    { href: "/accounts/collection-target-setting", label: "Collection Target Setting", icon: Wallet },
+    { href: "/accounts/daily-collection", label: "Daily Collection", icon: Banknote },
+    { href: "/accounts/price-support", label: "Price Support", icon: TrendingUp },
+    { href: "/accounts/budget-vs-actual-setting", label: "Budget VS Actual Setting", icon: TrendingUp },
+    { href: "/accounts/budget-vs-actual-submission", label: "Budget VS Actual Submission", icon: TrendingUp },
     { href: "/accounts/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
   ]
   
@@ -65,14 +71,17 @@ export default function AccountsLayout({ children }: { children: React.ReactNode
       )}>
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">Accounts</h1>
+                  <p className="text-xs text-slate-500">Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Accounts</h1>
-                <p className="text-xs text-slate-500">Dashboard</p>
-              </div>
+              <NotificationBell />
             </div>
           </div>
           

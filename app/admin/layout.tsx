@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, FileText, Users, LogOut, Menu, X, ClipboardList, User, Activity, BarChart3, Target, Calendar, Banknote, ArrowRightLeft, GraduationCap } from "lucide-react"
+import { LayoutDashboard, FileText, Users, LogOut, Menu, X, ClipboardList, User, Activity, BarChart3, Target, Calendar, Banknote, ArrowRightLeft, GraduationCap, PieChart, Phone, Wrench, Building2, GitBranch, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -40,11 +40,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/static-form/analytics", label: "Activity Analytics", icon: BarChart3 },
     { href: "/admin/kpi", label: "KPI Settings", icon: Target },
     { href: "/admin/kpi/dashboard", label: "KPI Dashboard", icon: Target },
-    { href: "/admin/sales-dashboard", label: "Sales Dashboard", icon: Banknote },
+    { href: "/admin/consumable-dashboard", label: "Consumable Dashboard", icon: PieChart },
+    { href: "/admin/accounts-analysis", label: "Accounts Analysis", icon: PieChart },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/appointments", label: "Appointments", icon: Calendar },
     { href: "/admin/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
+    { href: "/admin/front-desk-calls", label: "Front Desk Calls / Visits", icon: Phone },
     { href: "/admin/assigned-training", label: "Assigned Training", icon: GraduationCap },
+    { href: "/admin/branch-tracking", label: "Branch Tracking", icon: Building2 },
+    { href: "/admin/branches", label: "Branches", icon: GitBranch },
+    { href: "/admin/service-tasks", label: "Service Calls/Cases", icon: Wrench },
+    { href: "/admin/project-tender", label: "Project/Tender", icon: Briefcase },
     { href: "/admin/profile", label: "Profile", icon: User },
   ]
   

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (payload.role !== "esbd" && payload.role !== "service" && payload.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (payload.role !== "esbd" && payload.role !== "service" && payload.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     

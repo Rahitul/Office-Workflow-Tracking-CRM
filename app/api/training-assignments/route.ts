@@ -6,8 +6,10 @@ import { TrainingAssignment } from "@/models/TrainingAssignment"
 import { Training } from "@/models/Training"
 import { Product } from "@/models/Product"
 import { Company } from "@/models/Company"
+import { User } from "@/models/User"
 import { verifyAccessToken } from "@/lib/auth"
 import { trainingAssignmentSchema } from "@/lib/validations/training"
+import { sendTrainingAssignedEmail } from "@/lib/email"
 
 export async function GET() {
   try {
@@ -26,7 +28,7 @@ export async function GET() {
     }
     
     let query = {}
-    if (payload.role === "esbd" || payload.role === "admin") {
+    if (["esbd", "service", "admin"].includes(payload.role)) {
       if (payload.role === "admin") {
         query = {}
       } else {
@@ -42,7 +44,7 @@ export async function GET() {
       .populate("trainingId.productId.companyId", "name")
       .populate("assignedTo", "name email role")
       .populate("assignedBy", "name email")
-      .select("priority status assignedAt completedAt trainingId assignedTo assignedBy brandName productName month")
+      .select("priority status assignedAt startedAt completedAt trainingId assignedTo assignedBy brandName productName month")
       .sort({ createdAt: -1 })
     
     return NextResponse.json({ assignments })
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (!["esbd", "service", "admin"].includes(payload.role))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     
@@ -111,6 +113,18 @@ export async function POST(request: Request) {
         })
         await assignment.save()
         assignments.push(assignment)
+
+        const user = await User.findById(userId).select("email name")
+        if (user?.email) {
+          await sendTrainingAssignedEmail({
+            to: user.email,
+            trainingTitle: training.title,
+            priority: priority || "medium",
+            month: month || "",
+            brandName: brandName,
+            productName: productName,
+          })
+        }
       }
     }
     

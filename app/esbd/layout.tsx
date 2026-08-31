@@ -5,8 +5,9 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Building2, Package, GraduationCap, Users, User, LogOut, Menu, X, ArrowRightLeft } from "lucide-react"
+import { LayoutDashboard, Building2, Package, GraduationCap, Users, User, LogOut, Menu, X, ArrowRightLeft, FileText, UserCog, ClipboardList, MapPin, Clock, Monitor, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
+import NotificationBell from "@/components/notification-bell"
 
 export default function EsbdLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -40,6 +41,13 @@ export default function EsbdLayout({ children }: { children: React.ReactNode }) 
     { href: "/esbd/trainings", label: "Trainings", icon: GraduationCap },
     { href: "/esbd/assign-training", label: "Assign Training", icon: Users },
     { href: "/esbd/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
+    { href: "/esbd/task-assign", label: "Call/Case Assign", icon: ClipboardList },
+    { href: "/esbd/company-list", label: "Company List", icon: MapPin },
+    { href: "/esbd/manage-quotation", label: "Manage Quotation", icon: FileText },
+    { href: "/esbd/travel-time", label: "Travel Time", icon: Clock },
+    { href: "/esbd/machine-list", label: "Machine List / Service Card", icon: Monitor },
+    { href: "/esbd/project-tender", label: "Project/Tender", icon: Briefcase },
+    { href: "/esbd/engineer-info", label: "Engineer's Info", icon: UserCog },
     { href: "/esbd/profile", label: "Profile", icon: User },
   ]
   
@@ -70,14 +78,17 @@ export default function EsbdLayout({ children }: { children: React.ReactNode }) 
       )}>
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-lg flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">ESBD</h1>
+                  <p className="text-xs text-slate-500">Training Hub</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">ESBD</h1>
-                <p className="text-xs text-slate-500">Training Hub</p>
-              </div>
+              <NotificationBell />
             </div>
           </div>
           

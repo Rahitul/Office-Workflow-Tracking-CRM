@@ -39,3 +39,27 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# secrets / sensitive files
+ecosystem.config.js
+lib/email.ts
+
+# logs
+logs/
+
+# backups
+backups/
+
+# debug / temp files
+dev-error.txt
+dev-output.txt
+dev-server.log
+
+# misc docs / notes
+error.md
+app/read.md
+task list development.md
+task_assign_prd.md
+branchprd.md
+data-migration.md
+backupinstruction.md

@@ -100,6 +100,7 @@ echo.
 echo   Credentials:
 echo   - Admin: admin@iomdaily.com / admin123
 echo   - User:  user@iomdaily.com / user123
+echo   - ESBD:  (create via admin panel with role "esbd")
 echo ============================================
 echo.
 

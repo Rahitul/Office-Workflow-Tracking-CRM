@@ -5,12 +5,12 @@ import axios from "axios"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Users, CheckCircle, AlertCircle, Plus, Filter, X, Pencil, Trash2 } from "lucide-react"
+import { Users, CheckCircle, AlertCircle, Plus, Filter, X, Pencil, Trash2, Search } from "lucide-react"
 
 interface Training {
   _id: string
   title: string
-  productId: { _id: string; name: string; companyId: { _id: string; name: string } }
+  productId: { _id: string; name: string; companyId: { _id: string; name: string } } | string
 }
 
 interface UserData {
@@ -18,6 +18,17 @@ interface UserData {
   name: string
   email: string
   role: string
+}
+
+interface Company {
+  _id: string
+  name: string
+}
+
+interface Product {
+  _id: string
+  name: string
+  companyId: { _id: string; name: string } | string
 }
 
 interface TrainingAssignment {
@@ -30,11 +41,15 @@ interface TrainingAssignment {
   month: string
   brandName?: string
   productName?: string
+  startedAt?: string
+  completedAt?: string
 }
 
 export default function AssignTrainingPage() {
   const [trainings, setTrainings] = useState<Training[]>([])
   const [users, setUsers] = useState<UserData[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([])
   const [selectedTraining, setSelectedTraining] = useState("")
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
@@ -46,13 +61,19 @@ export default function AssignTrainingPage() {
   const [filterPriority, setFilterPriority] = useState("")
   const [filterTraining, setFilterTraining] = useState("")
   const [filterMonth, setFilterMonth] = useState("")
+  const [filterStatus, setFilterStatus] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPriority, setEditPriority] = useState("")
+  const [trainingSearch, setTrainingSearch] = useState("")
+  const [showTrainingSuggestions, setShowTrainingSuggestions] = useState(false)
+  const [userRoleFilter, setUserRoleFilter] = useState("")
 
   useEffect(() => {
     fetchTrainings()
+    fetchCompanies()
+    fetchProducts()
     fetchUsers()
     fetchAssignments()
   }, [])
@@ -63,6 +84,24 @@ export default function AssignTrainingPage() {
       setTrainings(response.data.trainings || [])
     } catch (error) {
       console.error("Failed to fetch trainings:", error)
+    }
+  }
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get("/api/companies", { withCredentials: true })
+      setCompanies(response.data.companies || [])
+    } catch (error) {
+      console.error("Failed to fetch companies:", error)
+    }
+  }
+
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get("/api/products", { withCredentials: true })
+      setProducts(response.data.products || [])
+    } catch (error) {
+      console.error("Failed to fetch products:", error)
     }
   }
 
@@ -158,22 +197,62 @@ export default function AssignTrainingPage() {
   }
 
   const trainingOptions = trainings.map(t => {
-    const brandName = typeof t.productId?.companyId === "object" ? t.productId.companyId.name : ""
-    const productName = typeof t.productId === "object" ? t.productId.name : ""
+    const productId = t.productId
+    let brandName = ""
+    let productName = ""
+
+    if (typeof productId === "object" && productId !== null) {
+      productName = productId?.name || ""
+      const companyId = productId?.companyId
+      if (companyId) {
+        if (typeof companyId === "object" && companyId !== null) {
+          brandName = companyId.name || ""
+        } else if (typeof companyId === "string") {
+          brandName = companies.find(c => c._id === companyId)?.name || ""
+        }
+      }
+    } else if (typeof productId === "string") {
+      const product = products.find(p => p._id === productId)
+      if (product) {
+        productName = product.name || ""
+        const companyId = product.companyId
+        if (typeof companyId === "object" && companyId !== null) {
+          brandName = companyId.name || ""
+        } else if (typeof companyId === "string") {
+          brandName = companies.find(c => c._id === companyId)?.name || ""
+        }
+      }
+    }
+
     return {
       value: t._id,
       label: `${t.title} - (${brandName} • ${productName})`
     }
   })
 
-  const assignableUsers = users.filter(u => u.role === "user" || u.role === "service" || u.role === "marketing")
+  const filteredTrainingOptions = trainingSearch
+    ? trainingOptions.filter(opt => 
+        opt.label.toLowerCase().includes(trainingSearch.toLowerCase()) ||
+        opt.label.toLowerCase().includes(trainingSearch.toLowerCase())
+      )
+    : trainingOptions
+
+  const assignableUsers = users.filter(u => 
+    u.role === "user" || u.role === "service" || u.role === "marketing" ||
+    u.role === "user_juniors" || u.role === "service_juniors" || u.role === "marketing_juniors" || u.role === "esbd_juniors"
+  )
+
+  const filteredUsers = userRoleFilter 
+    ? assignableUsers.filter(u => u.role === userRoleFilter)
+    : assignableUsers
 
   const filteredAssignments = assignments.filter(a => {
     const matchesUser = !filterUser || a.assignedTo?._id === filterUser || a.assignedTo?.name?.toLowerCase().includes(filterUser.toLowerCase())
     const matchesPriority = !filterPriority || (a.priority || "medium") === filterPriority
     const matchesTraining = !filterTraining || a.trainingId?.title?.toLowerCase().includes(filterTraining.toLowerCase())
     const matchesMonth = !filterMonth || a.month === filterMonth
-    return matchesUser && matchesPriority && matchesTraining && matchesMonth
+    const matchesStatus = !filterStatus || a.status === filterStatus
+    return matchesUser && matchesPriority && matchesTraining && matchesMonth && matchesStatus
   })
 
   return (
@@ -208,17 +287,41 @@ export default function AssignTrainingPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Select Training</label>
-              <select
-                value={selectedTraining}
-                onChange={(e) => setSelectedTraining(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
-                required
-              >
-                <option value="">Select a training</option>
-                {trainingOptions.map((opt: { value: string; label: string }) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={trainingSearch}
+                    onChange={(e) => {
+                      setTrainingSearch(e.target.value)
+                      setSelectedTraining("")
+                      setShowTrainingSuggestions(true)
+                    }}
+                    onFocus={() => setShowTrainingSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowTrainingSuggestions(false), 200)}
+                    placeholder="Search training..."
+                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
+                  />
+                </div>
+                {showTrainingSuggestions && filteredTrainingOptions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {filteredTrainingOptions.map((opt) => (
+                      <div
+                        key={opt.value}
+                        className="px-3 py-2 hover:bg-purple-50 cursor-pointer text-sm"
+                        onClick={() => {
+                          setSelectedTraining(opt.value)
+                          setTrainingSearch(opt.label)
+                          setShowTrainingSuggestions(false)
+                        }}
+                      >
+                        {opt.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -248,11 +351,25 @@ export default function AssignTrainingPage() {
               <label className="text-sm font-semibold text-slate-700">
                 Select Users ({selectedUsers.length} selected)
               </label>
-              {assignableUsers.length === 0 ? (
+              <select
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm mb-2"
+              >
+                <option value="">All Roles</option>
+                <option value="user">User</option>
+                <option value="user_juniors">User Juniors</option>
+                <option value="service">Service</option>
+                <option value="service_juniors">Service Juniors</option>
+                <option value="marketing">Marketing</option>
+                <option value="marketing_juniors">Marketing Juniors</option>
+                <option value="esbd_juniors">ESBD Juniors</option>
+              </select>
+              {filteredUsers.length === 0 ? (
                 <p className="text-slate-500 py-4">No users available for assignment</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200">
-                  {assignableUsers.map((user) => (
+                  {filteredUsers.map((user) => (
                     <label
                       key={user._id}
                       className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-all ${
@@ -272,9 +389,10 @@ export default function AssignTrainingPage() {
                         <p className="text-xs text-slate-500">{user.email}</p>
                       </div>
                       <Badge className={`text-xs capitalize ${
-                        user.role === "user" ? "bg-blue-100 text-blue-700" :
-                        user.role === "service" ? "bg-teal-100 text-teal-700" :
-                        "bg-pink-100 text-pink-700"
+                        user.role === "user" || user.role === "user_juniors" ? "bg-blue-100 text-blue-700" :
+                        user.role === "service" || user.role === "service_juniors" ? "bg-teal-100 text-teal-700" :
+                        user.role === "marketing" || user.role === "marketing_juniors" ? "bg-pink-100 text-pink-700" :
+                        "bg-purple-100 text-purple-700"
                       }`}>
                         {user.role}
                       </Badge>
@@ -359,10 +477,23 @@ export default function AssignTrainingPage() {
                     className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                   />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Filter by Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
               </div>
-              {(filterUser || filterPriority || filterTraining || filterMonth) && (
+              {(filterUser || filterPriority || filterTraining || filterMonth || filterStatus) && (
                 <button
-                  onClick={() => { setFilterUser(""); setFilterPriority(""); setFilterTraining(""); setFilterMonth("") }}
+                  onClick={() => { setFilterUser(""); setFilterPriority(""); setFilterTraining(""); setFilterMonth(""); setFilterStatus("") }}
                   className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
                 >
                   <X className="w-3 h-3" />
@@ -390,6 +521,15 @@ export default function AssignTrainingPage() {
                         {assignment.month && (
                           <p className="text-xs text-slate-500 mt-1">Month: {assignment.month}</p>
                         )}
+                        <div className="text-xs text-slate-400 mt-1 space-y-1">
+                          <p>Assigned: {assignment.assignedAt ? new Date(assignment.assignedAt).toLocaleString() : "-"}</p>
+                          {assignment.startedAt && (
+                            <p>Started: {new Date(assignment.startedAt).toLocaleString()}</p>
+                          )}
+                          {assignment.completedAt && (
+                            <p>Completed: {new Date(assignment.completedAt).toLocaleString()}</p>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {editingId === assignment._id ? (

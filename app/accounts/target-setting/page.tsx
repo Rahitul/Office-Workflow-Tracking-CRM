@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Target, CheckCircle, AlertCircle } from "lucide-react"
+import { Target, CheckCircle, AlertCircle, Pencil, Trash2 } from "lucide-react"
 
 interface SalesUser {
   _id: string
@@ -73,6 +73,8 @@ export default function TargetSettingPage() {
   const [month, setMonth] = useState("")
   const [year, setYear] = useState("")
   const [amountBDT, setAmountBDT] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState("")
 
   const currentYear = new Date().getFullYear()
   const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(y => ({ value: y.toString(), label: y.toString() }))
@@ -171,10 +173,40 @@ export default function TargetSettingPage() {
     return `${MONTHS.find(m => parseInt(m.value) === month)?.label} ${year}`
   }
 
+  const handleEdit = (target: SalesTarget) => {
+    setEditingId(target._id)
+    setEditAmount(target.amountBDT.toString())
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this target?")) return
+    try {
+      await axios.delete(`/api/sales-targets/${id}`, { withCredentials: true })
+      fetchExistingTargets()
+    } catch (error) {
+      console.error("Failed to delete target:", error)
+    }
+  }
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      await axios.put(`/api/sales-targets/${id}`, { amountBDT: parseFloat(editAmount) }, { withCredentials: true })
+      setEditingId(null)
+      fetchExistingTargets()
+    } catch (error) {
+      console.error("Failed to update target:", error)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditAmount("")
+  }
+
   return (
     <div className="space-y-6 pb-12">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Target Setting</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Sales Target Setting</h1>
         <p className="text-slate-500">Set monthly sales targets by Department, Branch, or Salesman</p>
       </div>
 
@@ -285,6 +317,7 @@ export default function TargetSettingPage() {
                     <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Target</th>
                     <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Period</th>
                     <th className="text-right py-3 px-4 text-xs font-bold text-slate-500 uppercase">Amount (BDT)</th>
+                    <th className="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -298,7 +331,49 @@ export default function TargetSettingPage() {
                       <td className="py-3 px-4 text-sm font-medium text-slate-900">{target.targetName}</td>
                       <td className="py-3 px-4 text-sm text-slate-600">{formatMonthYear(target.month, target.year)}</td>
                       <td className="py-3 px-4 text-sm font-semibold text-slate-900 text-right">
-                        {formatAmount(target.amountBDT)}
+                        {editingId === target._id ? (
+                          <Input
+                            type="number"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className="w-32 h-8 text-right"
+                          />
+                        ) : (
+                          formatAmount(target.amountBDT)
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {editingId === target._id ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              onClick={() => handleSaveEdit(target._id)}
+                              className="h-8 px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              onClick={handleCancelEdit}
+                              className="h-8 px-2 bg-slate-400 hover:bg-slate-500 text-white"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              onClick={() => handleEdit(target)}
+                              className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(target._id)}
+                              className="h-8 w-8 p-0 bg-red-600 hover:bg-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

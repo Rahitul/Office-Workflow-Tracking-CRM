@@ -5,8 +5,9 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, GraduationCap, LogOut, Menu, X, User, ArrowRightLeft } from "lucide-react"
+import { LayoutDashboard, GraduationCap, LogOut, Menu, X, User, ArrowRightLeft, Building2, Package, Users, ClipboardList, MapPin, Clock, FileText, Monitor, Briefcase, UserCog } from "lucide-react"
 import { cn } from "@/lib/utils"
+import NotificationBell from "@/components/notification-bell"
 
 export default function ServiceLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -35,8 +36,19 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
   
   const navItems = [
     { href: "/service/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/service/trainings", label: "My Trainings", icon: GraduationCap },
+    { href: "/service/brands", label: "Brands", icon: Building2 },
+    { href: "/service/products", label: "Products", icon: Package },
+    { href: "/service/training-content", label: "Trainings", icon: GraduationCap },
+    { href: "/service/assign-training", label: "Assign Training", icon: Users },
+    //{ href: "/service/trainings", label: "My Trainings", icon: GraduationCap },
     { href: "/service/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
+    { href: "/service/task-assign", label: "Call/Case Assign", icon: ClipboardList },
+    { href: "/service/company-list", label: "Company List", icon: MapPin },
+    { href: "/service/manage-quotation", label: "Manage Quotation", icon: FileText },
+    { href: "/service/travel-time", label: "Travel Time", icon: Clock },
+    { href: "/service/machine-list", label: "Machine List / Service Card", icon: Monitor },
+    { href: "/service/project-tender", label: "Project/Tender", icon: Briefcase },
+    { href: "/service/engineer-info", label: "Engineer's Info", icon: UserCog },
     { href: "/service/profile", label: "Profile", icon: User },
   ]
   
@@ -67,14 +79,17 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
       )}>
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-teal-600 to-emerald-700 rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-teal-600 to-emerald-700 rounded-lg flex items-center justify-center">
+                  <LayoutDashboard className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">EID</h1>
+                  <p className="text-xs text-slate-500">Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Service</h1>
-                <p className="text-xs text-slate-500">Dashboard</p>
-              </div>
+              <NotificationBell />
             </div>
           </div>
           

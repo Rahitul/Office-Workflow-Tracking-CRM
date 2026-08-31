@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose"
 
-export type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Successfully Closed"
+export type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Lost" | "Successfully Closed"
 
 export interface ILeadTransfer extends Document {
   _id: mongoose.Types.ObjectId
@@ -17,6 +17,7 @@ export interface ILeadTransfer extends Document {
   companyAddress: string
   previouslyQuoted: "YES" | "NO"
   notes?: string
+  remarks?: string
   status: LeadStatus
   fromUser: mongoose.Types.ObjectId
   createdAt: Date
@@ -38,7 +39,8 @@ const LeadTransferSchema = new Schema<ILeadTransfer>(
     companyAddress: { type: String, required: true },
     previouslyQuoted: { type: String, enum: ["YES", "NO"], required: true },
     notes: { type: String },
-    status: { type: String, enum: ["Pending", "Accepted", "Working", "Rejected", "Successfully Closed"], default: "Pending" },
+    remarks: { type: String },
+    status: { type: String, enum: ["Pending", "Accepted", "Working", "Rejected", "Lost", "Successfully Closed"], default: "Pending" },
     fromUser: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   {

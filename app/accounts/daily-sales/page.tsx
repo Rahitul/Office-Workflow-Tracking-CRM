@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, AlertCircle, TrendingUp, Calendar, Banknote } from "lucide-react"
+import { CheckCircle, AlertCircle, TrendingUp, Calendar, Banknote, Pencil, Trash2 } from "lucide-react"
 import {
   PieChart,
   Pie,
@@ -97,6 +97,9 @@ export default function DailySalesPage() {
   const [entryDate, setEntryDate] = useState("")
   const [amountBDT, setAmountBDT] = useState("")
   const [notes, setNotes] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState("")
+  const [editNotes, setEditNotes] = useState("")
 
   const currentYear = new Date().getFullYear()
   const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(y => ({ value: y.toString(), label: y.toString() }))
@@ -232,6 +235,38 @@ export default function DailySalesPage() {
 
   const formatMonthYear = (month: number, year: number) => {
     return `${MONTHS.find(m => parseInt(m.value) === month)?.label} ${year}`
+  }
+
+  const handleEdit = (entry: DailyEntry) => {
+    setEditingId(entry._id)
+    setEditAmount(entry.amountBDT.toString())
+    setEditNotes(entry.notes || "")
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this entry?")) return
+    try {
+      await axios.delete(`/api/daily-sales/${id}`, { withCredentials: true })
+      fetchEntries()
+    } catch (error) {
+      console.error("Failed to delete entry:", error)
+    }
+  }
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      await axios.put(`/api/daily-sales/${id}`, { amountBDT: parseFloat(editAmount), notes: editNotes }, { withCredentials: true })
+      setEditingId(null)
+      fetchEntries()
+    } catch (error) {
+      console.error("Failed to update entry:", error)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditAmount("")
+    setEditNotes("")
   }
 
   const filteredTargets = useMemo(() => {
@@ -460,6 +495,17 @@ export default function DailySalesPage() {
                           <span className="text-slate-400">Target:</span>
                           <span className="text-slate-900">{formatAmount(item.amountBDT)}</span>
                         </div>
+                        <div className="flex justify-center gap-2 mt-3 pt-3 border-t border-slate-50">
+                          <Button
+                            onClick={() => {
+                              setEditingId(item._id + "-target")
+                              setEditAmount(item.amountBDT.toString())
+                            }}
+                            className="h-7 px-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                          >
+                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -488,6 +534,7 @@ export default function DailySalesPage() {
                     <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Date</th>
                     <th className="text-right py-3 px-4 text-xs font-bold text-slate-500 uppercase">Amount (BDT)</th>
                     <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Notes</th>
+                    <th className="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -501,9 +548,61 @@ export default function DailySalesPage() {
                       <td className="py-3 px-4 text-sm font-medium text-slate-900">{entry.targetName}</td>
                       <td className="py-3 px-4 text-sm text-slate-600">{entry.entryDate}</td>
                       <td className="py-3 px-4 text-sm font-semibold text-emerald-600 text-right">
-                        {formatAmount(entry.amountBDT)}
+                        {editingId === entry._id ? (
+                          <Input
+                            type="number"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className="w-24 h-8 text-right"
+                          />
+                        ) : (
+                          formatAmount(entry.amountBDT)
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-500 max-w-xs truncate">{entry.notes || "-"}</td>
+                      <td className="py-3 px-4 text-sm text-slate-500 max-w-xs truncate">
+                        {editingId === entry._id ? (
+                          <Input
+                            value={editNotes}
+                            onChange={(e) => setEditNotes(e.target.value)}
+                            className="h-8"
+                          />
+                        ) : (
+                          entry.notes || "-"
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {editingId === entry._id ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              onClick={() => handleSaveEdit(entry._id)}
+                              className="h-8 px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              onClick={handleCancelEdit}
+                              className="h-8 px-2 bg-slate-400 hover:bg-slate-500 text-white"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              onClick={() => handleEdit(entry)}
+                              className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(entry._id)}
+                              className="h-8 w-8 p-0 bg-red-600 hover:bg-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

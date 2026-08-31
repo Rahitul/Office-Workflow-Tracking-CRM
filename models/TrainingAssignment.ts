@@ -8,6 +8,7 @@ export interface ITrainingAssignment extends Document {
   priority: "high" | "medium" | "low"
   status: "pending" | "in_progress" | "completed"
   assignedAt: Date
+  startedAt: Date | null
   completedAt: Date | null
   notes: string
   brandName: string
@@ -23,6 +24,7 @@ const TrainingAssignmentSchema = new Schema<ITrainingAssignment>(
     priority: { type: String, enum: ["high", "medium", "low"], default: "medium", index: true },
     status: { type: String, enum: ["pending", "in_progress", "completed"], default: "pending", index: true },
     assignedAt: { type: Date, default: Date.now },
+    startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     notes: { type: String, default: "" },
     brandName: { type: String, default: "" },

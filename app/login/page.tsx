@@ -47,6 +47,42 @@ export default function LoginPage() {
         router.push("/consumable/lead-transfer")
       } else if (role === "logistics") {
         router.push("/logistics/lead-transfer")
+      } else if (role === "esbd_juniors") {
+        router.push("/esbd_juniors/lead-transfer")
+      } else if (role === "accounts_juniors") {
+        router.push("/accounts_juniors/lead-transfer")
+      } else if (role === "consumable_juniors") {
+        router.push("/consumable_juniors/lead-transfer")
+      } else if (role === "service_juniors") {
+        router.push("/service_juniors/lead-transfer")
+      } else if (role === "marketing_juniors") {
+        router.push("/marketing_juniors/lead-transfer")
+      } else if (role === "user_juniors") {
+        router.push("/user_juniors/lead-transfer")
+      } else if (role === "logistics_juniors") {
+        router.push("/logistics_juniors/lead-transfer")
+      } else if (role === "frontdesk") {
+        router.push("/frontdesk/front-desk-call")
+      } else if (role === "branch_manager") {
+        router.push("/branch_manager/tracking")
+      } else if (role === "branch_manager_juniors") {
+        router.push("/branch_manager_juniors/tracking")
+      } else if (role === "branch_service") {
+        router.push("/branch_service/tracking")
+      } else if (role === "branch_service_juniors") {
+        router.push("/branch_service_juniors/tracking")
+      } else if (role === "branch_sales") {
+        router.push("/branch_sales/tracking")
+      } else if (role === "branch_sales_juniors") {
+        router.push("/branch_sales_juniors/tracking")
+      } else if (role === "branch_consumable") {
+        router.push("/branch_consumable/tracking")
+      } else if (role === "branch_consumable_juniors") {
+        router.push("/branch_consumable_juniors/tracking")
+      } else if (role === "branch_accounts") {
+        router.push("/branch_accounts/tracking")
+      } else if (role === "branch_accounts_juniors") {
+        router.push("/branch_accounts_juniors/tracking")
       } else {
         router.push("/user/dashboard")
       }
@@ -64,7 +100,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <ClipboardList className="w-9 h-9 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Form Builder</h1>
+          <h1 className="text-2xl font-bold text-slate-900">IOM Daily</h1>
           <p className="text-slate-500 mt-1">Sign in to your account</p>
         </div>
         

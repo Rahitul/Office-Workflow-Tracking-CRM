@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react"
 import axios from "axios"
 import { Card, CardContent } from "@/components/ui/card"
-import { GraduationCap, CheckCircle } from "lucide-react"
+import { GraduationCap, CheckCircle, ListChecks, Users } from "lucide-react"
+import Link from "next/link"
 
 export default function ServiceDashboardPage() {
   const [stats, setStats] = useState({
@@ -63,6 +64,23 @@ export default function ServiceDashboardPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/service/manage-dropdowns"
+          className="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 hover:border-teal-300 hover:text-teal-700 transition-colors"
+        >
+          <ListChecks className="w-5 h-5 text-teal-600" />
+          Manage Dropdowns
+        </Link>
+        <Link
+          href="/service/engineer-info"
+          className="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 hover:border-teal-300 hover:text-teal-700 transition-colors"
+        >
+          <Users className="w-5 h-5 text-teal-600" />
+          Engineer&apos;s Info
+        </Link>
       </div>
     </div>
   )

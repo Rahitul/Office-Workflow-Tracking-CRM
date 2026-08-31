@@ -35,6 +35,23 @@ export async function POST(request: Request) {
       visits,
       quotationsIssuedToday,
       ordersClosedToday,
+      orderValueMfp,
+      orderValueMps,
+      orderValueBarcodePrinters,
+      orderValuePaperShredder,
+      orderValueDuplicator,
+      orderValueBarcodeScanner,
+      orderValueSolutions,
+      orderValueTender,
+      billsClosedToday,
+      billValueMfp,
+      billValueMps,
+      billValueBarcodePrinters,
+      billValuePaperShredder,
+      billValueDuplicator,
+      billValueBarcodeScanner,
+      billValueSolutions,
+      billValueTender,
       tomorrowPlan
     } = body
     
@@ -58,6 +75,23 @@ export async function POST(request: Request) {
       visits: visits ?? [],
       quotationsIssuedToday: quotationsIssuedToday ?? 0,
       ordersClosedToday: ordersClosedToday ?? 0,
+      orderValueMfp: orderValueMfp ?? 0,
+      orderValueMps: orderValueMps ?? 0,
+      orderValueBarcodePrinters: orderValueBarcodePrinters ?? 0,
+      orderValuePaperShredder: orderValuePaperShredder ?? 0,
+      orderValueDuplicator: orderValueDuplicator ?? 0,
+      orderValueBarcodeScanner: orderValueBarcodeScanner ?? 0,
+      orderValueSolutions: orderValueSolutions ?? 0,
+      orderValueTender: orderValueTender ?? 0,
+      billsClosedToday: billsClosedToday ?? 0,
+      billValueMfp: billValueMfp ?? 0,
+      billValueMps: billValueMps ?? 0,
+      billValueBarcodePrinters: billValueBarcodePrinters ?? 0,
+      billValuePaperShredder: billValuePaperShredder ?? 0,
+      billValueDuplicator: billValueDuplicator ?? 0,
+      billValueBarcodeScanner: billValueBarcodeScanner ?? 0,
+      billValueSolutions: billValueSolutions ?? 0,
+      billValueTender: billValueTender ?? 0,
       tomorrowPlan: tomorrowPlan ?? "",
       submittedAt: new Date(),
     }
@@ -108,7 +142,7 @@ export async function GET(request: Request) {
       }
     }
     
-    if (payload.role === "user") {
+    if (payload.role === "user" || payload.role === "user_juniors") {
       query.userId = payload.userId
     } else if (userId) {
       query.userId = userId

@@ -22,6 +22,9 @@ interface TrainingAssignment {
   month: string
   brandName?: string
   productName?: string
+  assignedAt?: string
+  startedAt?: string
+  completedAt?: string
 }
 
 export default function UserTrainingsPage() {
@@ -206,6 +209,15 @@ export default function UserTrainingsPage() {
                       {selectedTraining.month && (
                         <p className="text-sm text-slate-500 mt-1">Month: {selectedTraining.month}</p>
                       )}
+                      <div className="text-xs text-slate-500 mt-2 space-y-1">
+                        <p>Assigned: {selectedTraining.assignedAt ? new Date(selectedTraining.assignedAt).toLocaleString() : "-"}</p>
+                        {selectedTraining.startedAt && (
+                          <p>Started: {new Date(selectedTraining.startedAt).toLocaleString()}</p>
+                        )}
+                        {selectedTraining.completedAt && (
+                          <p>Completed: {new Date(selectedTraining.completedAt).toLocaleString()}</p>
+                        )}
+                      </div>
                     </div>
 
                     {selectedTraining.trainingId?.description && (

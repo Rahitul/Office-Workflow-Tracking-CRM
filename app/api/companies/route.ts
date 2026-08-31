@@ -16,12 +16,12 @@ export async function GET() {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (payload.role !== "esbd" && payload.role !== "service" && payload.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     
-    const companies = await Company.find({ createdBy: payload.userId })
-      .select("name description isProtected createdAt")
+    const companies = await Company.find({})
+      .select("name description isProtected createdAt createdBy")
       .sort({ createdAt: -1 })
     
     return NextResponse.json({ companies })
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (payload.role !== "esbd" && payload.role !== "service" && payload.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     

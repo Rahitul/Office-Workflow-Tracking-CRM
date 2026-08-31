@@ -5,8 +5,9 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo, Calendar, GraduationCap, ArrowRightLeft } from "lucide-react"
+import { FileText, LogOut, Menu, X, ClipboardList, User, Activity, Target, ListTodo, Calendar, GraduationCap, ArrowRightLeft, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
+import NotificationBell from "@/components/notification-bell"
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -52,6 +53,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     { href: "/user/next-day-plan", label: "Next Day Plan", icon: ListTodo },
     { href: "/user/kpi", label: "My KPI", icon: Target },
     { href: "/user/lead-transfer", label: "Lead Transfer", icon: ArrowRightLeft },
+    { href: "/user/project-tender", label: "Project/Tender", icon: Briefcase },
     { href: "/user/profile", label: "Profile", icon: User },
   ]
   
@@ -82,14 +84,17 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       )}>
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">Sales</h1>
+                  <p className="text-xs text-slate-500">Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">User</h1>
-                <p className="text-xs text-slate-500">Dashboard</p>
-              </div>
+              <NotificationBell />
             </div>
           </div>
           

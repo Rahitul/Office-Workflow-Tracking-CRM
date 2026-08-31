@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import { connectDB } from "@/lib/db"
+import { BranchSalesTarget } from "@/models/BranchSalesTarget"
+import { verifyAccessToken } from "@/lib/auth"
+
+export async function GET(request: Request) {
+  try {
+    await connectDB()
+    const { searchParams } = new URL(request.url)
+    const branchId = searchParams.get("branchId")
+    const userId = searchParams.get("userId")
+    const month = searchParams.get("month")
+    const year = searchParams.get("year")
+
+    const filter: Record<string, unknown> = {}
+    if (branchId) filter.branchId = branchId
+    if (userId) filter.userId = userId
+    if (month) filter.month = parseInt(month)
+    if (year) filter.year = parseInt(year)
+
+    const targets = await BranchSalesTarget.find(filter)
+      .populate("branchId", "name code")
+      .populate("userId", "name")
+      .sort({ year: -1, month: -1 })
+      .lean()
+
+    return NextResponse.json({ targets })
+  } catch (error: any) {
+    console.error("Get branch sales targets error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    await connectDB()
+    const cookieStore = await cookies()
+    const accessToken = cookieStore.get("accessToken")?.value
+    if (!accessToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const payload = await verifyAccessToken(accessToken)
+    if (!payload || payload.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { branchId, userId, month, year, ...fields } = body
+
+    if (!branchId || !userId || !month || !year) {
+      return NextResponse.json({ error: "branchId, userId, month, and year are required" }, { status: 400 })
+    }
+
+    const target = await BranchSalesTarget.findOneAndUpdate(
+      { branchId, userId, month: parseInt(month), year: parseInt(year) },
+      { $set: { ...fields, branchId, userId, month: parseInt(month), year: parseInt(year) } },
+      { upsert: true, returnDocument: "after" }
+    )
+
+    return NextResponse.json({ target })
+  } catch (error: any) {
+    console.error("Set branch sales target error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

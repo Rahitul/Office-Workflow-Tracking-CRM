@@ -6,7 +6,7 @@ import { verifyAccessToken } from "@/lib/auth"
 import { z } from "zod"
 
 const updateRoleSchema = z.object({
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "accounts", "service", "esbd", "marketing", "consumable", "logistics", "esbd_juniors", "accounts_juniors", "consumable_juniors", "service_juniors", "marketing_juniors", "user_juniors", "logistics_juniors", "frontdesk", "branch_manager", "branch_manager_juniors", "branch_service", "branch_service_juniors", "branch_sales", "branch_sales_juniors", "branch_consumable", "branch_consumable_juniors", "branch_accounts", "branch_accounts_juniors"]),
 })
 
 export async function PATCH(

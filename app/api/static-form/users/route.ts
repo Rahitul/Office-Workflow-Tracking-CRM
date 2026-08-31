@@ -6,7 +6,9 @@ export async function GET() {
   try {
     await connectDB()
     
-    const users = await User.find({ role: "user" }).select("_id name email").sort({ name: 1 })
+    const users = await User.find({ 
+      role: { $in: ["user", "user_juniors", "service", "service_juniors", "consumable", "consumable_juniors", "branch_sales", "branch_sales_juniors", "branch_service", "branch_service_juniors", "branch_consumable", "branch_consumable_juniors"] }
+    }).select("_id name email role").sort({ name: 1 })
     
     return NextResponse.json({ users })
   } catch (error: any) {

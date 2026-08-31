@@ -18,7 +18,7 @@ import {
 import { ArrowRightLeft, Loader2, ArrowDownLeft, ArrowUpRight } from "lucide-react"
 
 type TabType = "transfer" | "received" | "sent"
-type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Successfully Closed"
+type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Lost" | "Successfully Closed"
 
 interface UserData {
   _id: string
@@ -41,6 +41,7 @@ interface LeadData {
   companyAddress: string
   previouslyQuoted: string
   notes?: string
+  remarks?: string
   status: LeadStatus
   fromUser?: {
     name: string
@@ -79,6 +80,12 @@ function TransferForm({
       setFormData((prev) => ({ ...prev, employeeName: user.name }))
     }
   }, [user])
+
+  useEffect(() => {
+    if (users.length > 0 && !formData.toSalesPerson) {
+      setFormData((prev) => ({ ...prev, toSalesPerson: users[0]._id }))
+    }
+  }, [users])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -294,6 +301,8 @@ function ReceivedLeads({ userId }: { userId: string }) {
   const [leads, setLeads] = useState<LeadData[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [remarksStatus, setRemarksStatus] = useState<{ [leadId: string]: LeadStatus }>({})
+  const [remarksText, setRemarksText] = useState<{ [leadId: string]: string }>({})
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -314,22 +323,29 @@ function ReceivedLeads({ userId }: { userId: string }) {
     fetchLeads()
   }, [userId])
 
-  const handleStatusUpdate = async (leadId: string, newStatus: string) => {
+  const handleStatusUpdate = async (leadId: string, newStatus: string, remarks?: string) => {
     setUpdating(leadId)
     try {
       const res = await fetch(`/api/lead-transfers/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...(remarks !== undefined ? { remarks } : {}) }),
         credentials: "include",
       })
       const data = await res.json()
       if (data.success) {
         setLeads((prev) =>
           prev.map((lead) =>
-            lead._id === leadId ? { ...lead, status: newStatus as LeadStatus } : lead
+            lead._id === leadId
+              ? { ...lead, status: newStatus as LeadStatus, ...(remarks !== undefined ? { remarks } : {}) }
+              : lead
           )
         )
+        setRemarksStatus((prev) => {
+          const next = { ...prev }
+          delete next[leadId]
+          return next
+        })
         alert("Status updated successfully!")
       } else {
         alert(data.error || "Failed to update status")
@@ -352,6 +368,8 @@ function ReceivedLeads({ userId }: { userId: string }) {
         return "bg-purple-100 text-purple-800"
       case "Rejected":
         return "bg-red-100 text-red-800"
+      case "Lost":
+        return "bg-orange-100 text-orange-800"
       case "Successfully Closed":
         return "bg-green-100 text-green-800"
       default:
@@ -435,33 +453,87 @@ function ReceivedLeads({ userId }: { userId: string }) {
                   <p className="text-slate-900">{lead.notes}</p>
                 </div>
               )}
+              {lead.remarks && (
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Remarks</p>
+                  <p className="text-slate-900">{lead.remarks}</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm font-medium text-slate-500 mb-2">Update Status</p>
-              <div className="flex gap-2">
-                <Select
-                  options={[
-                    { value: "Pending", label: "Pending" },
-                    { value: "Accepted", label: "Accepted" },
-                    { value: "Working", label: "Working" },
-                    { value: "Rejected", label: "Rejected" },
-                    { value: "Successfully Closed", label: "Successfully Closed" },
-                  ]}
-                  value={lead.status}
-                  onChange={(e) => handleStatusUpdate(lead._id, e.target.value)}
-                />
-                <Button
-                  onClick={() => handleStatusUpdate(lead._id, lead.status)}
-                  disabled={updating === lead._id}
-                >
-                  {updating === lead._id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Update"
-                  )}
-                </Button>
-              </div>
+              {remarksStatus[lead._id] ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600">
+                    {remarksStatus[lead._id]} — please provide a reason:
+                  </p>
+                  <Textarea
+                    value={remarksText[lead._id] || ""}
+                    onChange={(e) =>
+                      setRemarksText((prev) => ({ ...prev, [lead._id]: e.target.value }))
+                    }
+                    placeholder="Enter remarks (required)"
+                    rows={2}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleStatusUpdate(lead._id, remarksStatus[lead._id], (remarksText[lead._id] || "").trim())}
+                      disabled={updating === lead._id || !(remarksText[lead._id] || "").trim()}
+                    >
+                      {updating === lead._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Submit"
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setRemarksStatus((prev) => {
+                          const next = { ...prev }
+                          delete next[lead._id]
+                          return next
+                        })
+                      }
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Select
+                    options={[
+                      { value: "Pending", label: "Pending" },
+                      { value: "Accepted", label: "Accepted" },
+                      { value: "Working", label: "Working" },
+                      { value: "Rejected", label: "Rejected" },
+                      { value: "Lost", label: "Lost" },
+                      { value: "Successfully Closed", label: "Successfully Closed" },
+                    ]}
+                    value={lead.status}
+                    onChange={(e) => {
+                      const value = e.target.value as LeadStatus
+                      if (value === "Rejected" || value === "Lost") {
+                        setRemarksStatus((prev) => ({ ...prev, [lead._id]: value }))
+                      } else {
+                        handleStatusUpdate(lead._id, value)
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => handleStatusUpdate(lead._id, lead.status)}
+                    disabled={updating === lead._id}
+                  >
+                    {updating === lead._id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Update"
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -503,6 +575,8 @@ function SentLeads({ userId }: { userId: string }) {
         return "bg-purple-100 text-purple-800"
       case "Rejected":
         return "bg-red-100 text-red-800"
+      case "Lost":
+        return "bg-orange-100 text-orange-800"
       case "Successfully Closed":
         return "bg-green-100 text-green-800"
       default:
@@ -618,7 +692,8 @@ export default function LeadTransferPage() {
         })
         const data = await res.json()
         if (data.users) {
-          setUsers(data.users)
+          const filteredUsers = data.users.filter((u: UserData) => u.role === "user" || u.role === "user_juniors")
+          setUsers(filteredUsers)
         }
       } catch (error) {
         console.error("Error fetching users:", error)

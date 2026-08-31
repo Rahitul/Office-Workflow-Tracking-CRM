@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, GraduationCap, LogOut, Menu, X, User, ArrowRightLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
+import NotificationBell from "@/components/notification-bell"
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -67,14 +68,17 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       )}>
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-pink-600 to-rose-700 rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-pink-600 to-rose-700 rounded-lg flex items-center justify-center">
+                  <LayoutDashboard className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">Marketing</h1>
+                  <p className="text-xs text-slate-500">Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Marketing</h1>
-                <p className="text-xs text-slate-500">Dashboard</p>
-              </div>
+              <NotificationBell />
             </div>
           </div>
           

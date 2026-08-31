@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Loader2, ArrowRightLeft, Filter, X } from "lucide-react"
 
-type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Successfully Closed"
+type LeadStatus = "Pending" | "Accepted" | "Working" | "Rejected" | "Lost" | "Successfully Closed"
 
 interface LeadData {
   _id: string
@@ -29,6 +29,7 @@ interface LeadData {
   companyAddress: string
   previouslyQuoted: string
   notes?: string
+  remarks?: string
   status: LeadStatus
   fromUser: {
     _id: string
@@ -98,6 +99,7 @@ export default function AdminLeadTransferPage() {
       { status: "Accepted", count: 0 },
       { status: "Working", count: 0 },
       { status: "Rejected", count: 0 },
+      { status: "Lost", count: 0 },
       { status: "Successfully Closed", count: 0 },
     ]
     data.forEach((lead) => {
@@ -140,6 +142,8 @@ export default function AdminLeadTransferPage() {
         return "bg-purple-100 text-purple-800"
       case "Rejected":
         return "bg-red-100 text-red-800"
+      case "Lost":
+        return "bg-orange-100 text-orange-800"
       case "Successfully Closed":
         return "bg-green-100 text-green-800"
       default:
@@ -170,7 +174,7 @@ export default function AdminLeadTransferPage() {
       </div>
 
       {/* Status Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
         {statusCounts.map((item) => (
           <Card 
             key={item.status}
@@ -248,6 +252,7 @@ export default function AdminLeadTransferPage() {
                     { value: "Accepted", label: "Accepted" },
                     { value: "Working", label: "Working" },
                     { value: "Rejected", label: "Rejected" },
+                    { value: "Lost", label: "Lost" },
                     { value: "Successfully Closed", label: "Successfully Closed" },
                   ]}
                   value={filters.status}
@@ -345,6 +350,12 @@ export default function AdminLeadTransferPage() {
                     <div>
                       <p className="text-sm font-medium text-slate-500">Notes</p>
                       <p className="text-slate-900">{lead.notes}</p>
+                    </div>
+                  )}
+                  {lead.remarks && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Remarks</p>
+                      <p className="text-slate-900">{lead.remarks}</p>
                     </div>
                   )}
                 </div>

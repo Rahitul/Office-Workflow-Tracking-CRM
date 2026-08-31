@@ -31,27 +31,33 @@ export async function PUT(request: Request, { params }: { params: Params }) {
       return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
     }
     
-    const isEsbdOrAdmin = payload.role === "esbd" || payload.role === "admin"
+    const isAssignor = ["esbd", "service", "admin"].includes(payload.role)
     const isAssignedUser = assignment.assignedTo.toString() === payload.userId
     
-    if (!isEsbdOrAdmin && !isAssignedUser) {
+    if (!isAssignor && !isAssignedUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     
-    if (priority && isEsbdOrAdmin) {
+    if (priority && isAssignor) {
       assignment.priority = priority
     }
     
     if (status) {
-      if (isAssignedUser && !isEsbdOrAdmin) {
+      if (isAssignedUser && !isAssignor) {
         if (status === "in_progress" || status === "completed") {
           assignment.status = status
+          if (status === "in_progress") {
+            assignment.startedAt = new Date()
+          }
           if (status === "completed") {
             assignment.completedAt = new Date()
           }
         }
-      } else if (isEsbdOrAdmin) {
+      } else if (isAssignor) {
         assignment.status = status
+        if (status === "in_progress" && !assignment.startedAt) {
+          assignment.startedAt = new Date()
+        }
         if (status === "completed") {
           assignment.completedAt = new Date()
         }
@@ -79,7 +85,7 @@ export async function DELETE(request: Request, { params }: { params: Params }) {
     }
     
     const payload = await verifyAccessToken(accessToken)
-    if (!payload || (payload.role !== "esbd" && payload.role !== "admin")) {
+    if (!payload || (!["esbd", "service", "admin"].includes(payload.role))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     

@@ -23,6 +23,23 @@ export interface IActivity extends Document {
   visits: IVisit[]
   quotationsIssuedToday: number
   ordersClosedToday: number
+  orderValueMfp: number
+  orderValueMps: number
+  orderValueBarcodePrinters: number
+  orderValuePaperShredder: number
+  orderValueDuplicator: number
+  orderValueBarcodeScanner: number
+  orderValueSolutions: number
+  orderValueTender: number
+  billsClosedToday: number
+  billValueMfp: number
+  billValueMps: number
+  billValueBarcodePrinters: number
+  billValuePaperShredder: number
+  billValueDuplicator: number
+  billValueBarcodeScanner: number
+  billValueSolutions: number
+  billValueTender: number
   tomorrowPlan: string
   submittedAt: Date
 }
@@ -58,6 +75,23 @@ const ActivitySchema = new Schema<IActivity>(
     visits: { type: [VisitSchema], default: [] },
     quotationsIssuedToday: { type: Number, default: 0 },
     ordersClosedToday: { type: Number, default: 0 },
+    orderValueMfp: { type: Number, default: 0 },
+    orderValueMps: { type: Number, default: 0 },
+    orderValueBarcodePrinters: { type: Number, default: 0 },
+    orderValuePaperShredder: { type: Number, default: 0 },
+    orderValueDuplicator: { type: Number, default: 0 },
+    orderValueBarcodeScanner: { type: Number, default: 0 },
+    orderValueSolutions: { type: Number, default: 0 },
+    orderValueTender: { type: Number, default: 0 },
+    billsClosedToday: { type: Number, default: 0 },
+    billValueMfp: { type: Number, default: 0 },
+    billValueMps: { type: Number, default: 0 },
+    billValueBarcodePrinters: { type: Number, default: 0 },
+    billValuePaperShredder: { type: Number, default: 0 },
+    billValueDuplicator: { type: Number, default: 0 },
+    billValueBarcodeScanner: { type: Number, default: 0 },
+    billValueSolutions: { type: Number, default: 0 },
+    billValueTender: { type: Number, default: 0 },
     tomorrowPlan: { type: String, default: "" },
     submittedAt: { type: Date, default: Date.now },
   },
