@@ -53,7 +53,7 @@ export async function proxy(request: NextRequest) {
   const apiAdminPaths = ["/api/forms", "/api/users", "/api/responses", "/api/appointments"]
   const apiAccountsPaths = ["/api/sales-targets", "/api/daily-sales", "/api/collection-targets", "/api/daily-collections", "/api/price-support-targets", "/api/daily-price-supports"]
   const apiEsbdPaths = ["/api/companies", "/api/products", "/api/trainings"]
-  const apiAllAuthPaths = ["/api/lead-transfers", "/api/training-assignments", "/api/users", "/api/frontdesk-calls", "/api/service-tasks", "/api/checklists", "/api/companiesforservice", "/api/travel-times", "/api/quotations", "/api/machines", "/api/dropdowns", "/api/consumable-activity", "/api/consumable-kpi-targets", "/api/branch-service-phone-calls", "/api/branch-sales-phone-calls", "/api/branch-consumable-phone-calls", "/api/branch-consumable-activity", "/api/project-tender", "/api/warranty-check", "/api/engineer-info"]
+  const apiAllAuthPaths = ["/api/lead-transfers", "/api/training-assignments", "/api/users", "/api/frontdesk-calls", "/api/service-tasks", "/api/checklists", "/api/companiesforservice", "/api/travel-times", "/api/quotations", "/api/machines", "/api/dropdowns", "/api/consumable-activity", "/api/consumable-kpi-targets", "/api/branch-service-phone-calls", "/api/branch-sales-phone-calls", "/api/branch-consumable-phone-calls", "/api/branch-consumable-activity", "/api/project-tender", "/api/warranty-check", "/api/engineer-info", "/api/service-history", "/api/breaks", "/api/filter-dates", "/api/bill-targets"]
   const apiBranchPaths = ["/api/branches", "/api/branch-sales-targets", "/api/branch-service-targets", "/api/branch-consumable-targets", "/api/branch-dashboard"]
   
   // Check if the current path requires authentication

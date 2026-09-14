@@ -31,6 +31,7 @@ import {
   Receipt,
   Package,
   Footprints,
+  Copy,
 } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 import { cn } from "@/lib/utils"
@@ -443,6 +444,13 @@ export default function ConsumableDashboardPage() {
   const [billValueDuplicatorMaster, setBillValueDuplicatorMaster] = useState(0)
   const [billValueMps, setBillValueMps] = useState(0)
 
+  // ── Bulk copy modal state ────────────────────────────────────────────────
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [previousMonthTargets, setPreviousMonthTargets] = useState<ConsumableKpiTarget[]>([])
+  const [previousMonthInfo, setPreviousMonthInfo] = useState<{ month: number; year: number } | null>(null)
+  const [editableTargets, setEditableTargets] = useState<any[]>([])
+  const [bulkSaving, setBulkSaving] = useState(false)
+
   // ── KPI Dashboard state ────────────────────────────────────────────────────
   const [activities, setActivities] = useState<ConsumableActivity[]>([])
   const [dashboardLoading, setDashboardLoading] = useState(true)
@@ -594,6 +602,90 @@ export default function ConsumableDashboardPage() {
 
   const getUserName = (userId: { _id: string; name?: string }) => userId?.name || "Unknown"
   const getMonthName = (month: number) => MONTHS.find((m) => m.value === month.toString())?.label || ""
+
+  const handleBulkCopy = async () => {
+    try {
+      const res = await axios.get("/api/consumable-kpi-targets/previous", { withCredentials: true })
+      const { targets, month, year } = res.data
+      if (!targets || targets.length === 0) {
+        alert("No previous month targets found to copy from.")
+        return
+      }
+      setPreviousMonthInfo({ month, year })
+      setPreviousMonthTargets(targets)
+      setEditableTargets(targets.map((t: any) => {
+        const orderSum = (t.orderValueBlackAndWhite ?? 0) + (t.orderValueColor ?? 0) + (t.orderValueDuplicatorInk ?? 0) + (t.orderValueDuplicatorMaster ?? 0) + (t.orderValueMps ?? 0)
+        const billSum = (t.billValueBlackAndWhite ?? 0) + (t.billValueColor ?? 0) + (t.billValueDuplicatorInk ?? 0) + (t.billValueDuplicatorMaster ?? 0) + (t.billValueMps ?? 0)
+        return {
+          userId: t.userId._id,
+          userName: t.userId.name || "Unknown",
+          callsTarget: t.callsTarget ?? 0,
+          visitsTarget: t.visitsTarget ?? 0,
+          quotationTarget: t.quotationTarget ?? 0,
+          orderValueBlackAndWhite: t.orderValueBlackAndWhite ?? 0,
+          orderValueColor: t.orderValueColor ?? 0,
+          orderValueDuplicatorInk: t.orderValueDuplicatorInk ?? 0,
+          orderValueDuplicatorMaster: t.orderValueDuplicatorMaster ?? 0,
+          orderValueMps: t.orderValueMps ?? 0,
+          orderAmountTarget: orderSum,
+          billValueBlackAndWhite: t.billValueBlackAndWhite ?? 0,
+          billValueColor: t.billValueColor ?? 0,
+          billValueDuplicatorInk: t.billValueDuplicatorInk ?? 0,
+          billValueDuplicatorMaster: t.billValueDuplicatorMaster ?? 0,
+          billValueMps: t.billValueMps ?? 0,
+          billAmountTarget: billSum,
+        }
+      }))
+      setShowBulkModal(true)
+    } catch (error) {
+      console.error("Failed to fetch previous targets:", error)
+      alert("Failed to load previous targets.")
+    }
+  }
+
+  const handleBulkTargetChange = (index: number, field: string, value: number) => {
+    setEditableTargets(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      if (["orderValueBlackAndWhite", "orderValueColor", "orderValueDuplicatorInk", "orderValueDuplicatorMaster", "orderValueMps"].includes(field)) {
+        const sum = (field === "orderValueBlackAndWhite" ? value : updated[index].orderValueBlackAndWhite) +
+          (field === "orderValueColor" ? value : updated[index].orderValueColor) +
+          (field === "orderValueDuplicatorInk" ? value : updated[index].orderValueDuplicatorInk) +
+          (field === "orderValueDuplicatorMaster" ? value : updated[index].orderValueDuplicatorMaster) +
+          (field === "orderValueMps" ? value : updated[index].orderValueMps)
+        updated[index].orderAmountTarget = sum
+      }
+      if (["billValueBlackAndWhite", "billValueColor", "billValueDuplicatorInk", "billValueDuplicatorMaster", "billValueMps"].includes(field)) {
+        const sum = (field === "billValueBlackAndWhite" ? value : updated[index].billValueBlackAndWhite) +
+          (field === "billValueColor" ? value : updated[index].billValueColor) +
+          (field === "billValueDuplicatorInk" ? value : updated[index].billValueDuplicatorInk) +
+          (field === "billValueDuplicatorMaster" ? value : updated[index].billValueDuplicatorMaster) +
+          (field === "billValueMps" ? value : updated[index].billValueMps)
+        updated[index].billAmountTarget = sum
+      }
+      return updated
+    })
+  }
+
+  const handleBulkSave = async () => {
+    setBulkSaving(true)
+    try {
+      await axios.post("/api/consumable-kpi-targets/bulk", {
+        month: parseInt(selectedMonth),
+        year: parseInt(selectedYear),
+        targets: editableTargets,
+      }, { withCredentials: true })
+      setShowBulkModal(false)
+      fetchTargets()
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (error) {
+      console.error("Failed to bulk save targets:", error)
+      alert("Failed to save targets. Please try again.")
+    } finally {
+      setBulkSaving(false)
+    }
+  }
 
   const filteredTargets = targets.filter((target) => {
     const userMatch = filterUser === "all" || target.userId._id === filterUser
@@ -799,6 +891,7 @@ export default function ConsumableDashboardPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="space-y-6 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Tab Navigation */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
@@ -864,11 +957,20 @@ export default function ConsumableDashboardPage() {
             {/* Form */}
             <div className="space-y-6">
               <Card className="border-slate-200 shadow-xl overflow-hidden bg-white ring-1 ring-slate-200/50">
-                <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
+                <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Target className="h-5 w-5 text-orange-600" />
                     Configure Target
                   </h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleBulkCopy}
+                    className="h-9 text-xs font-semibold border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Set target as like previous
+                  </Button>
                 </div>
                 <CardContent className="p-6">
                   <form onSubmit={handleSubmit} className="space-y-8">
@@ -1432,5 +1534,151 @@ export default function ConsumableDashboardPage() {
         </>
       )}
     </div>
+    {showBulkModal && previousMonthInfo && (
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowBulkModal(false)} />
+        <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Copy className="h-5 w-5 text-orange-600" />
+                Copy targets from {MONTHS.find(m => m.value === previousMonthInfo.month.toString())?.label} {previousMonthInfo.year}
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                To: {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                <span className="ml-2 text-slate-400">·</span>
+                <span className="ml-2">{editableTargets.length} team member{(editableTargets.length !== 1 ? "s" : "")}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setShowBulkModal(false)}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b-2 border-slate-200">
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 min-w-[140px]">Team Member</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[80px]">Calls</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[80px]">Visits</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">Quotation</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">Order B&W</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">Order Color</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[110px]">Order Dup Ink</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[120px]">Order Dup Master</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[90px]">Order MPS</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[110px]">Order Amount</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">Bill B&W</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">Bill Color</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[110px]">Bill Dup Ink</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[120px]">Bill Dup Master</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[90px]">Bill MPS</th>
+                    <th className="px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[110px]">Bill Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {editableTargets.map((target, index) => (
+                    <tr key={target.userId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-3 py-2.5 font-semibold text-slate-900 text-sm sticky left-0 bg-white z-10 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-[10px] shrink-0">
+                            {target.userName.charAt(0)}
+                          </div>
+                          <span className="truncate max-w-[110px]">{target.userName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.callsTarget} onChange={(e) => handleBulkTargetChange(index, "callsTarget", parseInt(e.target.value) || 0)} className="w-full max-w-[80px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.visitsTarget} onChange={(e) => handleBulkTargetChange(index, "visitsTarget", parseInt(e.target.value) || 0)} className="w-full max-w-[80px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.quotationTarget} onChange={(e) => handleBulkTargetChange(index, "quotationTarget", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderValueBlackAndWhite} onChange={(e) => handleBulkTargetChange(index, "orderValueBlackAndWhite", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderValueColor} onChange={(e) => handleBulkTargetChange(index, "orderValueColor", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderValueDuplicatorInk} onChange={(e) => handleBulkTargetChange(index, "orderValueDuplicatorInk", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderValueDuplicatorMaster} onChange={(e) => handleBulkTargetChange(index, "orderValueDuplicatorMaster", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderValueMps} onChange={(e) => handleBulkTargetChange(index, "orderValueMps", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.orderAmountTarget} readOnly className="w-full max-w-[110px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billValueBlackAndWhite} onChange={(e) => handleBulkTargetChange(index, "billValueBlackAndWhite", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billValueColor} onChange={(e) => handleBulkTargetChange(index, "billValueColor", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billValueDuplicatorInk} onChange={(e) => handleBulkTargetChange(index, "billValueDuplicatorInk", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billValueDuplicatorMaster} onChange={(e) => handleBulkTargetChange(index, "billValueDuplicatorMaster", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billValueMps} onChange={(e) => handleBulkTargetChange(index, "billValueMps", parseInt(e.target.value) || 0)} className="w-full max-w-[100px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all outline-none" />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input type="number" min="0" value={target.billAmountTarget} readOnly className="w-full max-w-[110px] mx-auto h-8 text-center text-xs rounded-md border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+            <p className="text-xs text-slate-400">
+              Editing targets for <span className="font-semibold text-slate-600">{editableTargets.length} member{(editableTargets.length !== 1 ? "s" : "")}</span>.
+              Changes will be saved for <span className="font-semibold text-slate-600">{MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}</span>.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowBulkModal(false)}
+                className="h-10 text-sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={bulkSaving}
+                onClick={handleBulkSave}
+                className="h-10 text-sm bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200 transition-all font-semibold"
+              >
+                {bulkSaving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Saving...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    <span>Set for {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

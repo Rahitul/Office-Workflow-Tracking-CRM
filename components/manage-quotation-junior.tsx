@@ -663,6 +663,7 @@ function TotalBillTab({ engineerFilter }: { engineerFilter?: string[] }) {
   const [filterDateTo, setFilterDateTo] = useState("")
   const filterEngRef = useRef<HTMLDivElement>(null)
   const filterDeptRef = useRef<HTMLDivElement>(null)
+  const loadedDatesRef = useRef(false)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -688,6 +689,28 @@ function TotalBillTab({ engineerFilter }: { engineerFilter?: string[] }) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/filter-dates", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.from) setFilterDateFrom(d.from)
+        if (d.to) setFilterDateTo(d.to)
+        loadedDatesRef.current = true
+      })
+      .catch(() => { loadedDatesRef.current = true })
+  }, [user])
+
+  useEffect(() => {
+    if (!loadedDatesRef.current || !user) return
+    fetch("/api/filter-dates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ from: filterDateFrom, to: filterDateTo }),
+    }).catch(() => {})
+  }, [filterDateFrom, filterDateTo, user])
 
   const filteredRawData = rawData.filter((q) => {
     if (filterEngineer && q.engineerName !== filterEngineer) return false

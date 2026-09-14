@@ -7,6 +7,7 @@ export interface ITravelTime extends Document {
   vehicleType: string
   hours: number
   minutes: number
+  segments?: { vehicleType: string; hours: number; minutes: number }[]
   createdBy: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
@@ -19,6 +20,11 @@ const TravelTimeSchema = new Schema<ITravelTime>(
     vehicleType: { type: String, required: true, default: "Bus" },
     hours: { type: Number, required: true, min: 0 },
     minutes: { type: Number, required: true, min: 0, max: 59 },
+    segments: [{
+      vehicleType: { type: String, required: true },
+      hours: { type: Number, required: true, min: 0 },
+      minutes: { type: Number, required: true, min: 0, max: 59 },
+    }],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
   },
   {

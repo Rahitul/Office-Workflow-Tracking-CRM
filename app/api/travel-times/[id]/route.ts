@@ -19,14 +19,60 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const body = await request.json()
+
+    const normFrom = (body.fromLocation || "").trim()
+    const normTo = (body.toLocation || "").trim()
+
+    if (normFrom && normTo) {
+      const candidateSegments = Array.isArray(body.segments) && body.segments.length > 0
+        ? body.segments.map((s: any) => ({ vehicleType: (s.vehicleType || "Bus").trim(), hours: Number(s.hours) || 0, minutes: Number(s.minutes) || 0 }))
+        : [{ vehicleType: (body.vehicleType || "Bus").trim(), hours: Number(body.hours) || 0, minutes: Number(body.minutes) || 0 }]
+
+      const existingByLocations = await TravelTime.find({
+        _id: { $ne: id },
+        fromLocation: { $regex: new RegExp(`^${normFrom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        toLocation: { $regex: new RegExp(`^${normTo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      })
+      const segmentsKey = (segs: { vehicleType: string; hours: number; minutes: number }[]) =>
+        segs.map(s => `${s.vehicleType.toLowerCase()}:${s.hours * 60 + s.minutes}`).join("|")
+      const candidateKey = segmentsKey(candidateSegments)
+      const duplicate = existingByLocations.find((entry: any) => {
+        const entrySegs = (Array.isArray(entry.segments) && entry.segments.length > 0)
+          ? entry.segments.map((s: any) => ({ vehicleType: s.vehicleType, hours: s.hours, minutes: s.minutes }))
+          : [{ vehicleType: entry.vehicleType, hours: entry.hours, minutes: entry.minutes }]
+        return segmentsKey(entrySegs) === candidateKey
+      })
+      if (duplicate) {
+        return NextResponse.json({ error: "A travel time for this route with the same segments already exists." }, { status: 409 })
+      }
+    }
+
+    let finalVehicleType = body.vehicleType || "Bus"
+    let finalHours = Number(body.hours)
+    let finalMinutes = Number(body.minutes)
+    let finalSegments: { vehicleType: string; hours: number; minutes: number }[] = []
+
+    if (Array.isArray(body.segments) && body.segments.length > 0) {
+      finalSegments = body.segments.map((seg: any) => ({
+        vehicleType: seg.vehicleType || "Bus",
+        hours: Number(seg.hours) || 0,
+        minutes: Number(seg.minutes) || 0,
+      }))
+      const totalMins = finalSegments.reduce((sum, seg) => sum + seg.hours * 60 + seg.minutes, 0)
+      finalVehicleType = finalSegments[0].vehicleType
+      finalHours = Math.floor(totalMins / 60)
+      finalMinutes = totalMins % 60
+    }
+
     const travelTime = await TravelTime.findByIdAndUpdate(
       id,
       {
-        fromLocation: body.fromLocation,
-        toLocation: body.toLocation,
-        vehicleType: body.vehicleType || "Bus",
-        hours: Number(body.hours),
-        minutes: Number(body.minutes),
+        fromLocation: normFrom || body.fromLocation,
+        toLocation: normTo || body.toLocation,
+        vehicleType: finalVehicleType,
+        hours: finalHours,
+        minutes: finalMinutes,
+        segments: finalSegments.length > 0 ? finalSegments : [],
       },
       { returnDocument: "after" }
     )

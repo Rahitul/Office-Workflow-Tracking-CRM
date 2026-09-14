@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, FileText, Search, X, PlusCircle, List, CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, DollarSign, ChevronDown, ChevronRight } from "lucide-react"
+import { Loader2, FileText, Search, X, PlusCircle, List, CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, DollarSign, ChevronDown, ChevronRight, Target, Save, Download, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface UserData {
@@ -38,6 +38,7 @@ interface QuotationData {
   quotationDate: string
   customerName: string
   engineerName: string
+  engineer?: string
   amount: number
   quotationType: string
   contactPerson: string
@@ -60,7 +61,7 @@ interface QuotationData {
   createdAt: string
 }
 
-type TabType = "create" | "list" | "total-bill"
+type TabType = "create" | "list" | "total-bill" | "set-targets"
 
 const initialFormData = {
   quotationId: "",
@@ -652,6 +653,60 @@ function QuotationsListTab({ refreshKey }: { refreshKey: number }) {
     }
   }
 
+  const exportToExcel = async () => {
+    const ExcelJS = (await import("exceljs")).default
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet("Quotations")
+
+    sheet.columns = [
+      { header: "Quotation ID", key: "quotationId", width: 20 },
+      { header: "Customer Name", key: "customerName", width: 30 },
+      { header: "Engineer", key: "engineerName", width: 22 },
+      { header: "Quotation Type", key: "quotationType", width: 22 },
+      { header: "Department", key: "department", width: 20 },
+      { header: "Amount", key: "amount", width: 15 },
+      { header: "Contact Person", key: "contactPerson", width: 22 },
+      { header: "Contact Number", key: "contactNumber", width: 18 },
+      { header: "Quotation Date", key: "quotationDate", width: 20 },
+      { header: "Status", key: "status", width: 18 },
+      { header: "Bill Date", key: "billDate", width: 20 },
+    ]
+
+    filteredQuotations.forEach((q) => {
+      sheet.addRow({
+        quotationId: q.quotationId,
+        customerName: q.customerName,
+        engineerName: q.engineerName,
+        quotationType: q.quotationType,
+        department: q.department || "",
+        amount: q.amount,
+        contactPerson: q.contactPerson,
+        contactNumber: q.contactNumber,
+        quotationDate: q.quotationDate ? formatDateTime(q.quotationDate) : "",
+        status: q.status,
+        billDate: q.billDate ? formatDateTime(q.billDate) : "",
+      })
+    })
+
+    const headerRow = sheet.getRow(1)
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } }
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F766E" } }
+    headerRow.alignment = { vertical: "middle", horizontal: "center" }
+    headerRow.height = 22
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 11 } }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `quotations-${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -734,7 +789,13 @@ function QuotationsListTab({ refreshKey }: { refreshKey: number }) {
             </Button>
           )}
         </div>
-        <p className="text-xs text-slate-400 mb-3">{filteredQuotations.length} of {quotations.length} quotations</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-slate-400">{filteredQuotations.length} of {quotations.length} quotations</p>
+          <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredQuotations.length === 0} className="h-8 text-xs gap-1.5">
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </Button>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
         ) : filteredQuotations.length === 0 ? (
@@ -948,6 +1009,7 @@ function QuotationsListTab({ refreshKey }: { refreshKey: number }) {
 }
 
 function TotalBillTab() {
+  const { user } = useAuthStore()
   const [rawData, setRawData] = useState<QuotationData[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -961,6 +1023,12 @@ function TotalBillTab() {
   const [filterDateFrom, setFilterDateFrom] = useState("")
   const [filterDateTo, setFilterDateTo] = useState("")
   const filterDeptRef = useRef<HTMLDivElement>(null)
+  const loadedDatesRef = useRef(false)
+  const engineerUserMap = useRef<Record<string, string>>({})
+  const now = new Date()
+  const [targetMonth, setTargetMonth] = useState(now.getMonth() + 1)
+  const [targetYear, setTargetYear] = useState(now.getFullYear())
+  const [targets, setTargets] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -979,6 +1047,53 @@ function TotalBillTab() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/filter-dates", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.from) setFilterDateFrom(d.from)
+        if (d.to) setFilterDateTo(d.to)
+        if (d.department) setFilterDept(d.department)
+        loadedDatesRef.current = true
+      })
+      .catch(() => { loadedDatesRef.current = true })
+  }, [user])
+
+  useEffect(() => {
+    if (!loadedDatesRef.current || !user) return
+    fetch("/api/filter-dates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ from: filterDateFrom, to: filterDateTo, department: filterDept }),
+    }).catch(() => {})
+  }, [filterDateFrom, filterDateTo, filterDept, user])
+
+  useEffect(() => {
+    fetch(`/api/bill-targets?month=${targetMonth}&year=${targetYear}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.data)) {
+          const map: Record<string, number> = {}
+          for (const t of d.data) {
+            if (t.userId?._id) map[t.userId._id] = t.targetAmount
+          }
+          setTargets(map)
+        }
+      })
+      .catch(() => {})
+  }, [targetMonth, targetYear])
+
+  useEffect(() => {
+    if (!loadedDatesRef.current) return
+    const firstDay = `${targetYear}-${String(targetMonth).padStart(2, "0")}-01`
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getDate()
+    const lastDayStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+    setFilterDateFrom(firstDay)
+    setFilterDateTo(lastDayStr)
+  }, [targetMonth, targetYear])
 
   const filteredRawData = rawData.filter((q) => {
     if (selectedEngineer && q.engineerName !== selectedEngineer) return false
@@ -1011,6 +1126,16 @@ function TotalBillTab() {
   const totalAmount = data.reduce((sum, g) => sum + g.quotations.reduce((s, q) => s + q.amount, 0), 0)
   const totalCount = data.reduce((sum, g) => sum + g.quotations.length, 0)
 
+  useEffect(() => {
+    const map: Record<string, string> = {}
+    for (const q of rawData) {
+      if (q.engineer && q.engineerName) map[q.engineerName] = q.engineer as unknown as string
+    }
+    engineerUserMap.current = map
+  }, [rawData])
+
+  const totalTarget = Object.values(targets).reduce((s, v) => s + v, 0)
+
   const selectEngineer = (name: string) => {
     setSelectedEngineer(name)
     setEngineerSearch(name)
@@ -1029,6 +1154,9 @@ function TotalBillTab() {
     setFilterDateFrom(""); setFilterDateTo("")
   }
 
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const YEARS = [2024, 2025, 2026, 2027, 2028]
+
   return (
     <Card>
       <CardHeader>
@@ -1040,6 +1168,18 @@ function TotalBillTab() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-3 mb-4 items-end">
+          <div>
+            <Label className="text-xs mb-1 block">Month</Label>
+            <select value={targetMonth} onChange={(e) => setTargetMonth(parseInt(e.target.value))} className="h-8 text-xs border rounded-md px-2 bg-white">
+              {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Year</Label>
+            <select value={targetYear} onChange={(e) => setTargetYear(parseInt(e.target.value))} className="h-8 text-xs border rounded-md px-2 bg-white">
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <div ref={dropdownRef} className="relative min-w-[180px]">
             <Label className="text-xs mb-1 block">Engineer</Label>
             <div className="relative">
@@ -1102,6 +1242,23 @@ function TotalBillTab() {
                 <p className="text-xs text-green-600 font-semibold uppercase">Total Bills</p>
                 <p className="text-2xl font-bold text-green-900">{totalCount}</p>
               </div>
+              {totalTarget > 0 && (
+                <div className="flex-1 min-w-[200px] p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-600 font-semibold uppercase">Team Target</p>
+                  <p className="text-2xl font-bold text-blue-900">{totalTarget.toLocaleString()}</p>
+                  {totalTarget > 0 && (
+                    <div className="mt-2">
+                      <div className="w-full bg-blue-100 rounded-full h-2">
+                        <div
+                          className={cn("h-2 rounded-full transition-all", totalAmount >= totalTarget ? "bg-green-500" : totalAmount >= totalTarget * 0.5 ? "bg-yellow-500" : "bg-red-500")}
+                          style={{ width: `${Math.min(Math.round((totalAmount / totalTarget) * 100), 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">{Math.round((totalAmount / totalTarget) * 100)}% achieved</p>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex-1 min-w-[200px] p-4 bg-teal-50 rounded-lg border border-teal-200">
                 <p className="text-xs text-teal-600 font-semibold uppercase">Total Amount</p>
                 <p className="text-2xl font-bold text-teal-900">{totalAmount.toFixed(2)}</p>
@@ -1112,21 +1269,50 @@ function TotalBillTab() {
               {data.map((group) => {
                 const isExpanded = expanded[group.engineerName]
                 const groupTotal = group.quotations.reduce((s, q) => s + q.amount, 0)
+                const userId = engineerUserMap.current[group.engineerName]
+                const target = userId ? targets[userId] : undefined
+                const pct = target && target > 0 ? Math.round((groupTotal / target) * 100) : null
                 return (
                   <div key={group.engineerName} className="border rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setExpanded((p) => ({ ...p, [group.engineerName]: !isExpanded }))}
-                      className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                        <span className="font-semibold text-slate-900">{group.engineerName}</span>
+                    <div className="px-4 py-3 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => setExpanded((p) => ({ ...p, [group.engineerName]: !isExpanded }))}
+                          className="flex items-center gap-3 flex-1 text-left"
+                        >
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                          <span className="font-semibold text-slate-900">{group.engineerName}</span>
+                        </button>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-slate-500">{group.quotations.length} bill{group.quotations.length !== 1 ? "s" : ""}</span>
+                          <span className="font-semibold text-teal-700">{groupTotal.toFixed(2)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-slate-500">{group.quotations.length} bill{group.quotations.length !== 1 ? "s" : ""}</span>
-                        <span className="font-semibold text-teal-700">{groupTotal.toFixed(2)}</span>
-                      </div>
-                    </button>
+                      {target !== undefined && target > 0 ? (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Target className="w-3.5 h-3.5 text-blue-500" />
+                            <span className="text-xs text-slate-500">Target: <span className="font-medium text-slate-700">{target.toLocaleString()}</span></span>
+                            {pct !== null && (
+                              <span className={cn("text-xs font-semibold px-1.5 py-0.5 rounded", pct >= 100 ? "bg-green-100 text-green-700" : pct >= 50 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700")}>
+                                {pct}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div
+                              className={cn("h-2 rounded-full transition-all", pct !== null && pct >= 100 ? "bg-green-500" : pct !== null && pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
+                              style={{ width: `${pct !== null ? Math.min(pct, 100) : 0}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">{groupTotal.toFixed(0)} / {target.toLocaleString()}</p>
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-xs text-slate-400" onClick={(e) => e.stopPropagation()}>
+                          No target set
+                        </div>
+                      )}
+                    </div>
                     {isExpanded && (
                       <div className="divide-y">
                         {group.quotations.map((q) => (
@@ -1153,6 +1339,404 @@ function TotalBillTab() {
   )
 }
 
+interface EngineerTarget {
+  userId: string
+  name: string
+  role: string
+  targetAmount: number
+  achieved: number
+  selected: boolean
+}
+
+const EID_ROLES = ["service", "service_juniors"]
+const ESBD_ROLES = ["esbd", "esbd_juniors"]
+const BRANCH_ROLES = ["branch_service", "branch_service_juniors", "branch_sales", "branch_sales_juniors", "branch_consumable", "branch_consumable_juniors", "branch_manager", "branch_manager_juniors", "branch_accounts", "branch_accounts_juniors"]
+const ENGINEER_ROLES = [...EID_ROLES, ...ESBD_ROLES, ...BRANCH_ROLES]
+
+function SetTargetsTab() {
+  const now = new Date()
+  const [targetMonth, setTargetMonth] = useState(now.getMonth() + 1)
+  const [targetYear, setTargetYear] = useState(now.getFullYear())
+  const [engineers, setEngineers] = useState<EngineerTarget[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState("")
+  const [groupFilter, setGroupFilter] = useState<"" | "eid" | "esbd" | "branch">("")
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const YEARS = [2024, 2025, 2026, 2027, 2028]
+
+  const [showCopyModal, setShowCopyModal] = useState(false)
+  const [copyTargets, setCopyTargets] = useState<{ userId: string; name: string; role: string; targetAmount: number }[]>([])
+  const [copyLoading, setCopyLoading] = useState(false)
+  const [copySaving, setCopySaving] = useState(false)
+  const [copyMsg, setCopyMsg] = useState("")
+
+  const getNextMonthYear = (m: number, y: number) => {
+    if (m === 12) return { month: 1, year: y + 1 }
+    return { month: m + 1, year: y }
+  }
+  const next = getNextMonthYear(targetMonth, targetYear)
+  const nextMonthName = MONTHS[next.month - 1]
+
+  useEffect(() => {
+    setLoading(true)
+    setSaveMsg("")
+    Promise.all([
+      fetch("/api/users", { credentials: "include" }).then((r) => r.json()),
+      fetch("/api/quotations?billable=true", { credentials: "include" }).then((r) => r.json()),
+      fetch(`/api/bill-targets?month=${targetMonth}&year=${targetYear}`, { credentials: "include" }).then((r) => r.json()),
+    ])
+      .then(([userRes, quotRes, targetRes]) => {
+        const allUsers = userRes.users || []
+        const engineers = allUsers.filter((u: UserData) => ENGINEER_ROLES.includes(u.role))
+
+        const targetMap: Record<string, number> = {}
+        if (targetRes.success && Array.isArray(targetRes.data)) {
+          for (const t of targetRes.data) {
+            if (!t.userId?._id) continue
+            targetMap[t.userId._id] = t.targetAmount
+          }
+        }
+
+        const achievedMap: Record<string, number> = {}
+        const billableQuotations = quotRes.success ? quotRes.data : []
+        for (const q of billableQuotations) {
+          if (!q.engineer) continue
+          const billDate = q.billDate ? new Date(q.billDate) : null
+          if (billDate) {
+            const bMonth = billDate.getMonth() + 1
+            const bYear = billDate.getFullYear()
+            if (bMonth === targetMonth && bYear === targetYear) {
+              achievedMap[q.engineer] = (achievedMap[q.engineer] || 0) + q.amount
+            }
+          }
+        }
+
+        const list: EngineerTarget[] = engineers
+          .map((u: UserData) => ({
+            userId: u._id,
+            name: u.name,
+            role: u.role,
+            targetAmount: targetMap[u._id] || 0,
+            achieved: achievedMap[u._id] || 0,
+            selected: true,
+          }))
+          .sort((a: EngineerTarget, b: EngineerTarget) => a.name.localeCompare(b.name))
+        setEngineers(list)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [targetMonth, targetYear])
+
+  const filteredEngineers = engineers.filter((e) => {
+    if (!groupFilter) return true
+    if (groupFilter === "eid") return EID_ROLES.includes(e.role)
+    if (groupFilter === "esbd") return ESBD_ROLES.includes(e.role)
+    if (groupFilter === "branch") return BRANCH_ROLES.includes(e.role)
+    return true
+  })
+
+  const updateTarget = (idx: number, value: string) => {
+    setEngineers((prev) => prev.map((e, i) => (i === idx ? { ...e, targetAmount: parseFloat(value) || 0 } : e)))
+  }
+
+  const toggleSelect = (idx: number) => {
+    setEngineers((prev) => prev.map((e, i) => (i === idx ? { ...e, selected: !e.selected } : e)))
+  }
+
+  const toggleAll = () => {
+    const allSelected = filteredEngineers.every((e) => e.selected)
+    const filteredIds = new Set(filteredEngineers.map((e) => e.userId))
+    setEngineers((prev) => prev.map((e) => filteredIds.has(e.userId) ? { ...e, selected: !allSelected } : e))
+  }
+
+  const saveSelected = async (all = false) => {
+    const targetsToSave = engineers
+      .filter((e) => (all || e.selected) && e.userId)
+      .map((e) => ({ userId: e.userId, targetAmount: e.targetAmount }))
+    if (targetsToSave.length === 0) return
+    setSaving(true)
+    setSaveMsg("")
+    try {
+      const res = await fetch("/api/bill-targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ month: targetMonth, year: targetYear, targets: targetsToSave }),
+      })
+      const data = await res.json()
+      if (data.success) setSaveMsg(`${data.saved} target${data.saved !== 1 ? "s" : ""} updated`)
+      else setSaveMsg("Failed to save")
+    } catch {
+      setSaveMsg("Failed to save")
+    }
+    setSaving(false)
+  }
+
+  const openCopyModal = async () => {
+    setShowCopyModal(true)
+    setCopyLoading(true)
+    setCopyMsg("")
+    try {
+      const [userRes, targetRes] = await Promise.all([
+        fetch("/api/users", { credentials: "include" }).then((r) => r.json()),
+        fetch(`/api/bill-targets?month=${targetMonth}&year=${targetYear}`, { credentials: "include" }).then((r) => r.json()),
+      ])
+      const allUsers = userRes.users || []
+      const engineerUsers = allUsers.filter((u: UserData) => ENGINEER_ROLES.includes(u.role))
+      const prevTargetMap: Record<string, number> = {}
+      if (targetRes.success && Array.isArray(targetRes.data)) {
+        for (const t of targetRes.data) {
+          if (t.userId?._id) prevTargetMap[t.userId._id] = t.targetAmount
+        }
+      }
+      const list = engineerUsers
+        .map((u: UserData) => ({
+          userId: u._id,
+          name: u.name,
+          role: u.role,
+          targetAmount: prevTargetMap[u._id] || 0,
+        }))
+        .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name))
+      setCopyTargets(list)
+    } catch {
+      setCopyMsg("Failed to load previous targets")
+    }
+    setCopyLoading(false)
+  }
+
+  const updateCopyTarget = (idx: number, value: string) => {
+    setCopyTargets((prev) => prev.map((t, i) => (i === idx ? { ...t, targetAmount: parseFloat(value) || 0 } : t)))
+  }
+
+  const saveCopyTargets = async () => {
+    const targetsToSave = copyTargets.filter((t) => t.userId).map((t) => ({ userId: t.userId, targetAmount: t.targetAmount }))
+    if (targetsToSave.length === 0) return
+    setCopySaving(true)
+    setCopyMsg("")
+    try {
+      const res = await fetch("/api/bill-targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ month: next.month, year: next.year, targets: targetsToSave }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCopyMsg(`Saved ${data.saved} target${data.saved !== 1 ? "s" : ""} for ${nextMonthName} ${next.year}`)
+        setTimeout(() => {
+          setShowCopyModal(false)
+          setTargetMonth(next.month)
+          setTargetYear(next.year)
+        }, 1200)
+      } else {
+        setCopyMsg("Failed to save")
+      }
+    } catch {
+      setCopyMsg("Failed to save")
+    }
+    setCopySaving(false)
+  }
+
+  const totalTarget = filteredEngineers.reduce((s, e) => s + e.targetAmount, 0)
+  const totalAchieved = filteredEngineers.reduce((s, e) => s + e.achieved, 0)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Target className="w-5 h-5" />
+          Set Bill Targets
+        </CardTitle>
+        <CardDescription>Set monthly bill targets for each engineer.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-3 mb-6 items-end">
+          <div>
+            <Label className="text-xs mb-1 block">Month</Label>
+            <select
+              value={targetMonth}
+              onChange={(e) => setTargetMonth(parseInt(e.target.value))}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Year</Label>
+            <select
+              value={targetYear}
+              onChange={(e) => setTargetYear(parseInt(e.target.value))}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Group</Label>
+            <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value as typeof groupFilter)} className="h-8 text-sm border rounded-md px-2 bg-white">
+              <option value="">All Groups</option>
+              <option value="eid">EID</option>
+              <option value="esbd">ESBD</option>
+              <option value="branch">Branch</option>
+            </select>
+          </div>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={openCopyModal} disabled={loading || engineers.length === 0} className="h-8">
+            <Copy className="w-3.5 h-3.5 mr-1" />
+            Set target as previous for {nextMonthName} {next.year}
+          </Button>
+          <Button size="sm" onClick={() => saveSelected(false)} disabled={saving || engineers.filter((e) => e.selected).length === 0} className="h-8">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+            Save Selected
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => saveSelected(true)} disabled={saving || engineers.length === 0} className="h-8">
+            Save All
+          </Button>
+          {saveMsg && <span className="text-sm text-green-600 font-medium">{saveMsg}</span>}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
+        ) : filteredEngineers.length === 0 ? (
+          <div className="text-center py-16">
+            <Target className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+            <p className="text-slate-500">{groupFilter ? "No engineers in this group" : "No engineers found"}</p>
+            <p className="text-sm text-slate-400 mt-1">Engineers appear once they have billable quotations</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-4 mb-4">
+              <div className="flex-1 min-w-[180px] p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-600 font-semibold uppercase">Total Target</p>
+                <p className="text-xl font-bold text-blue-900">{totalTarget.toLocaleString()}</p>
+              </div>
+              <div className="flex-1 min-w-[180px] p-3 bg-teal-50 rounded-lg border border-teal-200">
+                <p className="text-xs text-teal-600 font-semibold uppercase">Total Achieved</p>
+                <p className="text-xl font-bold text-teal-900">{totalAchieved.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+              </div>
+              {totalTarget > 0 && (
+                <div className="flex-1 min-w-[180px] p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <p className="text-xs text-slate-600 font-semibold uppercase">Overall</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 bg-slate-200 rounded-full h-2.5">
+                      <div
+                        className={cn("h-2.5 rounded-full transition-all", totalAchieved >= totalTarget ? "bg-green-500" : totalAchieved >= totalTarget * 0.5 ? "bg-yellow-500" : "bg-red-500")}
+                        style={{ width: `${Math.min(Math.round((totalAchieved / totalTarget) * 100), 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">{Math.round((totalAchieved / totalTarget) * 100)}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border rounded-lg overflow-hidden">
+              <div className="grid grid-cols-[auto_1fr_140px_140px_120px] gap-3 px-4 py-2.5 bg-slate-100 text-xs font-semibold text-slate-600 uppercase tracking-wide items-center">
+                <input type="checkbox" checked={filteredEngineers.every((e) => e.selected)} onChange={toggleAll} className="w-4 h-4 rounded border-slate-300" />
+                <span>Engineer</span>
+                <span className="text-right">Target</span>
+                <span className="text-right">Achieved</span>
+                <span className="text-right">Progress</span>
+              </div>
+              {filteredEngineers.map((eng) => {
+                const idx = engineers.findIndex((e) => e.userId === eng.userId)
+                const pct = eng.targetAmount > 0 ? Math.round((eng.achieved / eng.targetAmount) * 100) : null
+                return (
+                  <div key={eng.userId} className={cn("grid grid-cols-[auto_1fr_140px_140px_120px] gap-3 px-4 py-3 items-center border-t", eng.selected ? "bg-white" : "bg-slate-50")}>
+                    <input type="checkbox" checked={eng.selected} onChange={() => toggleSelect(idx)} className="w-4 h-4 rounded border-slate-300" />
+                    <div>
+                      <span className="font-medium text-slate-900 text-sm">{eng.name}</span>
+                    </div>
+                    <div className="flex justify-end">
+                      <input
+                        type="number"
+                        value={eng.targetAmount || ""}
+                        onChange={(e) => updateTarget(idx, e.target.value)}
+                        placeholder="0"
+                        className="w-full h-8 text-sm text-right border rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="text-right text-sm text-slate-700">
+                      {eng.achieved.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-right">
+                      {pct !== null ? (
+                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", pct >= 100 ? "bg-green-100 text-green-700" : pct >= 50 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700")}>
+                          {pct}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </CardContent>
+
+      {showCopyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col mx-4">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Copy Targets: {MONTHS[targetMonth - 1]} {targetYear} → {nextMonthName} {next.year}</h2>
+                <p className="text-sm text-slate-500">Current month&apos;s targets are pre-filled. Edit values as needed, then save.</p>
+              </div>
+              <button onClick={() => setShowCopyModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {copyLoading ? (
+                <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+              ) : copyTargets.length === 0 ? (
+                <div className="text-center py-12">
+                  <Target className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-slate-500">No engineers found</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-[1fr_140px] gap-3 px-4 py-2.5 bg-slate-100 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    <span>Engineer</span>
+                    <span className="text-right">Target for {nextMonthName}</span>
+                  </div>
+                  {copyTargets.map((t, idx) => (
+                    <div key={t.userId} className="grid grid-cols-[1fr_140px] gap-3 px-4 py-2.5 items-center border-t">
+                      <div>
+                        <span className="font-medium text-slate-900 text-sm">{t.name}</span>
+                      </div>
+                      <div className="flex justify-end">
+                        <input
+                          type="number"
+                          value={t.targetAmount || ""}
+                          onChange={(e) => updateCopyTarget(idx, e.target.value)}
+                          placeholder="0"
+                          className="w-full h-8 text-sm text-right border rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {copyMsg && (
+                <p className={cn("mt-3 text-sm font-medium", copyMsg.includes("Failed") ? "text-red-600" : "text-green-600")}>{copyMsg}</p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowCopyModal(false)} disabled={copySaving}>Cancel</Button>
+              <Button size="sm" onClick={saveCopyTargets} disabled={copyLoading || copySaving || copyTargets.length === 0}>
+                {copySaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                Save for {nextMonthName} {next.year}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function ManageQuotationPage() {
   const [activeTab, setActiveTab] = useState<TabType>("create")
   const [refreshKey, setRefreshKey] = useState(0)
@@ -1161,6 +1745,7 @@ export default function ManageQuotationPage() {
     { id: "create" as TabType, label: "Create Quotation", icon: PlusCircle },
     { id: "list" as TabType, label: "Quotations List", icon: List },
     { id: "total-bill" as TabType, label: "Total Bill", icon: DollarSign },
+    { id: "set-targets" as TabType, label: "Set Targets", icon: Target },
   ]
 
   return (
@@ -1191,6 +1776,7 @@ export default function ManageQuotationPage() {
       {activeTab === "create" && <CreateQuotationTab onSuccess={() => setRefreshKey((k) => k + 1)} />}
       {activeTab === "list" && <QuotationsListTab refreshKey={refreshKey} />}
       {activeTab === "total-bill" && <TotalBillTab />}
+      {activeTab === "set-targets" && <SetTargetsTab />}
     </div>
   )
 }

@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClipboardList, Loader2, Search, X, List, PlusCircle, RefreshCw, Eye, Timer, CheckCircle, Send, Trash2, Ban, ChevronDown } from "lucide-react"
+import { ClipboardList, Loader2, Search, X, List, PlusCircle, RefreshCw, Eye, Timer, CheckCircle, Send, Trash2, Ban, ChevronDown, Users, ChevronRight, Coffee, TableProperties } from "lucide-react"
 import { Dialog } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import ServiceTaskList from "@/components/service-task-list"
+import ServiceTaskList, { getMinutesGap, formatDuration } from "@/components/service-task-list"
+import BreaksTab from "@/components/breaks-tab"
 
 interface UserData {
   _id: string
@@ -56,6 +57,7 @@ interface QueueItem {
   assignedEngineer: { _id: string; name: string; email: string } | null
   receivedBy: { _id: string; name: string; email: string } | null
   priority: number
+  autoAssignedFromQueue: boolean
   fromLocation: string
   toLocation: string
   vehicleType: string
@@ -74,9 +76,10 @@ interface TravelTimeEntry {
   vehicleType: string
   hours: number
   minutes: number
+  segments?: { vehicleType: string; hours: number; minutes: number }[]
 }
 
-type TabType = "queue" | "assign" | "list" | "canceled"
+type TabType = "queue" | "assign" | "list" | "canceled" | "breaks" | "status"
 
 function formatGapLabel(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60)
@@ -295,7 +298,7 @@ function AssignForm({ users, allUsers, companies, customerCategories, callTypes,
         body: JSON.stringify({
           ...payload,
           status: "Queued",
-          callRecordDate: new Date(formData.callRecordDate),
+          callRecordDate: new Date(),
         }),
         credentials: "include",
       })
@@ -608,6 +611,13 @@ function QueueTab({
   const [filterEngineerSearch, setFilterEngineerSearch] = useState("")
   const [filterEngineerDropdownOpen, setFilterEngineerDropdownOpen] = useState(false)
   const engineerRef = useRef<HTMLDivElement>(null)
+  const [engineerPanelOpen, setEngineerPanelOpen] = useState(false)
+  const [engineerPanelSearch, setEngineerPanelSearch] = useState("")
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [dropTargetEngineer, setDropTargetEngineer] = useState<string | null>(null)
+  const [engineerAssignedTasks, setEngineerAssignedTasks] = useState<Record<string, any[]>>({})
+  const [expandedEngineers, setExpandedEngineers] = useState<Set<string>>(new Set())
+  const [assigningToEngineer, setAssigningToEngineer] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setLocalTasks(tasks)
@@ -630,8 +640,16 @@ function QueueTab({
                tt.toLocation.toLowerCase() === fromLocation.toLowerCase())
     )
     if (matched.length === 0) return allVehicleTypes
-    const types = [...new Set(matched.map((tt) => tt.vehicleType))]
-    return types
+    const types: string[] = []
+    matched.forEach((tt) => {
+      if (tt.segments && tt.segments.length > 0) {
+        const combined = tt.segments.map((s) => s.vehicleType).join(" + ")
+        types.push(combined)
+      } else {
+        types.push(tt.vehicleType)
+      }
+    })
+    return [...new Set(types)]
   }
 
   const handleFromChange = (id: string, fromLocation: string, currentTo: string, vehicleType?: string) => {
@@ -653,18 +671,33 @@ function QueueTab({
   }
 
   const autoFillGap = (item: QueueItem, fromLocation: string, toLocation: string, vehicleType?: string) => {
-    const match = travelTimes.find(
-      (tt) => tt.fromLocation.toLowerCase() === fromLocation.toLowerCase() && 
-              tt.toLocation.toLowerCase() === toLocation.toLowerCase() &&
-              (!vehicleType || tt.vehicleType === vehicleType)
-    ) || travelTimes.find(
-      (tt) => tt.fromLocation.toLowerCase() === toLocation.toLowerCase() && 
-              tt.toLocation.toLowerCase() === fromLocation.toLowerCase() &&
-              (!vehicleType || tt.vehicleType === vehicleType)
-    )
+    const routeMatch = (tt: TravelTimeEntry) =>
+      (tt.fromLocation.toLowerCase() === fromLocation.toLowerCase() &&
+       tt.toLocation.toLowerCase() === toLocation.toLowerCase()) ||
+      (tt.fromLocation.toLowerCase() === toLocation.toLowerCase() &&
+       tt.toLocation.toLowerCase() === fromLocation.toLowerCase())
+
+    const entryCombinedKey = (tt: TravelTimeEntry) =>
+      tt.segments && tt.segments.length > 0
+        ? tt.segments.map((s) => s.vehicleType).join(" + ")
+        : tt.vehicleType
+
+    let match: TravelTimeEntry | undefined
+    if (vehicleType && vehicleType.includes(" + ")) {
+      match = travelTimes.find((tt) => routeMatch(tt) && entryCombinedKey(tt) === vehicleType)
+    } else {
+      match = travelTimes.find((tt) => routeMatch(tt) && (!vehicleType || tt.vehicleType === vehicleType))
+    }
+    if (!match) {
+      match = travelTimes.find((tt) => routeMatch(tt))
+    }
     if (match) {
-      const val = gapValue(match.hours, match.minutes)
-      item.gapTravelStartedToCheckedIn = val
+      if (match.segments && match.segments.length > 0) {
+        const totalMins = match.segments.reduce((sum, seg) => sum + (seg.hours || 0) * 60 + (seg.minutes || 0), 0)
+        item.gapTravelStartedToCheckedIn = gapValue(Math.floor(totalMins / 60), totalMins % 60)
+      } else {
+        item.gapTravelStartedToCheckedIn = gapValue(match.hours, match.minutes)
+      }
     }
   }
 
@@ -744,6 +777,7 @@ function QueueTab({
           gapAcknowledgeToTravelStarted: item.gapAcknowledgeToTravelStarted,
           gapTravelStartedToCheckedIn: item.gapTravelStartedToCheckedIn,
           gapCheckedInToChecklistSubmitted: item.gapCheckedInToChecklistSubmitted,
+          notifyAssignee: true,
         }),
         credentials: "include",
       })
@@ -800,6 +834,7 @@ function QueueTab({
 
   const filteredTasks = useMemo(() => {
     return localTasks.filter((task) => {
+      if (task.assignedEngineer?._id) return false
       const matchSearch = !search || task.customerName.toLowerCase().includes(search.toLowerCase()) || task.taskId.toLowerCase().includes(search.toLowerCase()) || task.deviceModel.toLowerCase().includes(search.toLowerCase()) || (task.productCategory || "").toLowerCase().includes(search.toLowerCase()) || (task.productType || "").toLowerCase().includes(search.toLowerCase())
       const matchCallType = !callTypeFilter || task.callType === callTypeFilter
       const matchCategory = !categoryFilter || task.customerCategory === categoryFilter
@@ -819,7 +854,167 @@ function QueueTab({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  const fetchEngineerAssignedTasks = useCallback(async () => {
+    const tasksByEngineer: Record<string, any[]> = {}
+    const engineerIds = new Set<string>()
+    users.forEach((u) => engineerIds.add(u._id))
+    localTasks.forEach((t) => { if (t.assignedEngineer?._id) engineerIds.add(t.assignedEngineer._id) })
+    await Promise.all(Array.from(engineerIds).map(async (eid) => {
+      try {
+        const res = await fetch(`/api/service-tasks?assignedTo=${eid}&status=Queued`, { credentials: "include" })
+        const data = await res.json()
+        if (data.success) tasksByEngineer[eid] = data.data.filter((t: any) => t.autoAssignedFromQueue)
+      } catch {}
+    }))
+    setEngineerAssignedTasks(tasksByEngineer)
+  }, [users, localTasks])
+
+  useEffect(() => {
+    if (engineerPanelOpen) fetchEngineerAssignedTasks()
+  }, [engineerPanelOpen, fetchEngineerAssignedTasks])
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", taskId)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null)
+    setDropTargetEngineer(null)
+  }
+
+  const handleEngineerDragOver = (e: React.DragEvent, engineerId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDropTargetEngineer(engineerId)
+  }
+
+  const handleEngineerDragLeave = () => {
+    setDropTargetEngineer(null)
+  }
+
+  const handleEngineerDrop = async (e: React.DragEvent, engineerId: string) => {
+    e.preventDefault()
+    setDropTargetEngineer(null)
+    const taskId = e.dataTransfer.getData("text/plain") || draggedTaskId
+    if (!taskId) return
+    const task = localTasks.find((t) => t._id === taskId)
+    if (!task) return
+    if (!task.gapAssignedToAcknowledge || !task.gapAcknowledgeToTravelStarted || !task.gapTravelStartedToCheckedIn || !task.gapCheckedInToChecklistSubmitted) {
+      alert("Please set timeline first")
+      setDraggedTaskId(null)
+      return
+    }
+    setAssigningToEngineer((prev) => new Set(prev).add(taskId))
+    try {
+      const nextPriority = await fetchNextAvailablePriorityForEngineer(engineerId, taskId)
+      const res = await fetch(`/api/service-tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedEngineer: engineerId,
+          priority: nextPriority,
+          autoAssignedFromQueue: true,
+          fromLocation: task.fromLocation,
+          toLocation: task.toLocation,
+          vehicleType: task.vehicleType || "Bus",
+          gapAssignedToAcknowledge: task.gapAssignedToAcknowledge,
+          gapAcknowledgeToTravelStarted: task.gapAcknowledgeToTravelStarted,
+          gapTravelStartedToCheckedIn: task.gapTravelStartedToCheckedIn,
+          gapCheckedInToChecklistSubmitted: task.gapCheckedInToChecklistSubmitted,
+        }),
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data.success) {
+        setLocalTasks((prev) => prev.filter((t) => t._id !== taskId))
+        setSavedSet((prev) => { const n = new Set(prev); n.delete(taskId); return n })
+        fetchEngineerAssignedTasks()
+      } else {
+        alert(data.error || "Failed to assign task")
+      }
+    } catch (error) {
+      console.error("Error assigning task to engineer:", error)
+      alert("Failed to assign task")
+    } finally {
+      setAssigningToEngineer((prev) => { const n = new Set(prev); n.delete(taskId); return n })
+      setDraggedTaskId(null)
+    }
+  }
+
+  const [removingTaskId, setRemovingTaskId] = useState<string | null>(null)
+
+  const handleRemoveFromEngineer = async (taskId: string) => {
+    setRemovingTaskId(taskId)
+    try {
+      const res = await fetch(`/api/service-tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedEngineer: null, priority: 0, autoAssignedFromQueue: false }),
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data.success) {
+        fetchEngineerAssignedTasks()
+        onRefresh()
+      } else {
+        alert(data.error || "Failed to remove task")
+      }
+    } catch (error) {
+      console.error("Error removing task:", error)
+      alert("Failed to remove task")
+    } finally {
+      setRemovingTaskId(null)
+    }
+  }
+
+  const fetchNextAvailablePriorityForEngineer = useCallback(async (engineerId: string, excludeId: string): Promise<number> => {
+    let maxTodayPriority = 0
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      const res = await fetch(`/api/service-tasks?assignedTo=${engineerId}`, { credentials: "include" })
+      const data = await res.json()
+      if (data.success) data.data.forEach((t: any) => {
+        if (t.assignedFromQueueAt) {
+          const taskDate = new Date(t.assignedFromQueueAt).toISOString().slice(0, 10)
+          if (taskDate === today && t.priority > maxTodayPriority) maxTodayPriority = t.priority
+        }
+      })
+    } catch {}
+    return maxTodayPriority + 1
+  }, [])
+
+  const [assigningEngineerSet, setAssigningEngineerSet] = useState<Set<string>>(new Set())
+
+  const handleAssignEngineer = async (engineerId: string) => {
+    const tasks = engineerAssignedTasks[engineerId] || []
+    if (tasks.length === 0) return
+    const sorted = [...tasks].sort((a: any, b: any) => (a.priority || 999) - (b.priority || 999))
+    setAssigningEngineerSet((prev) => new Set(prev).add(engineerId))
+    try {
+      await Promise.all(sorted.map((t: any) =>
+        fetch(`/api/service-tasks/${t._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Assigned", assignedFromQueueAt: new Date().toISOString(), notifyAssignee: true }),
+          credentials: "include",
+        })
+      ))
+      onRefresh()
+      fetchEngineerAssignedTasks()
+    } catch (error) {
+      console.error("Error assigning:", error)
+      alert("Failed to assign call/case")
+    } finally {
+      setAssigningEngineerSet((prev) => { const n = new Set(prev); n.delete(engineerId); return n })
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
+
+  const engineerList = Array.from(new Map(users.map((u) => [u._id, u])).values())
+  const filteredEngineerList = engineerList.filter((eng) => eng.name.toLowerCase().includes(engineerPanelSearch.toLowerCase()))
 
   return (
     <div className="space-y-4">
@@ -828,68 +1023,80 @@ function QueueTab({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by customer, call/case ID, or model..." className="pl-9" />
         </div>
+        <Button variant={engineerPanelOpen ? "default" : "outline"} size="sm" onClick={() => setEngineerPanelOpen(!engineerPanelOpen)} className="flex items-center gap-2 shrink-0">
+          <Users className="w-4 h-4" />
+          {engineerPanelOpen ? "Hide Engineers" : "Show Engineers"}
+        </Button>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div ref={engineerRef} className="relative w-full sm:w-48">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              value={filterEngineerSearch}
-              onChange={(e) => { setFilterEngineerSearch(e.target.value); setFilterEngineerDropdownOpen(true); if (engineerFilter) setEngineerFilter("") }}
-              onFocus={() => setFilterEngineerDropdownOpen(true)}
-              placeholder={engineerFilter || "All Engineers"}
-              className="pl-9 pr-9"
-            />
-            {engineerFilter && (
-              <button type="button" onClick={() => { setEngineerFilter(""); setFilterEngineerSearch("") }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
+      <div className="flex gap-4">
+        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div ref={engineerRef} className="relative w-full sm:w-48">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                value={filterEngineerSearch}
+                onChange={(e) => { setFilterEngineerSearch(e.target.value); setFilterEngineerDropdownOpen(true); if (engineerFilter) setEngineerFilter("") }}
+                onFocus={() => setFilterEngineerDropdownOpen(true)}
+                placeholder={engineerFilter || "All Engineers"}
+                className="pl-9 pr-9"
+              />
+              {engineerFilter && (
+                <button type="button" onClick={() => { setEngineerFilter(""); setFilterEngineerSearch("") }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {filterEngineerDropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                <button type="button" onClick={() => { setEngineerFilter(""); setFilterEngineerSearch(""); setFilterEngineerDropdownOpen(false) }} className={cn("w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors", !engineerFilter ? "bg-blue-50 text-blue-700" : "text-gray-900")}>All Engineers</button>
+                {filteredEngineers.map((eng) => (
+                  <button key={eng._id} type="button" onClick={() => { setEngineerFilter(eng.name); setFilterEngineerSearch(eng.name); setFilterEngineerDropdownOpen(false) }} className={cn("w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors", engineerFilter === eng.name ? "bg-blue-50 text-blue-700" : "text-gray-900")}>{eng.name}</button>
+                ))}
+              </div>
             )}
           </div>
-          {filterEngineerDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-              <button type="button" onClick={() => { setEngineerFilter(""); setFilterEngineerSearch(""); setFilterEngineerDropdownOpen(false) }} className={cn("w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors", !engineerFilter ? "bg-blue-50 text-blue-700" : "text-gray-900")}>All Engineers</button>
-              {filteredEngineers.map((eng) => (
-                <button key={eng._id} type="button" onClick={() => { setEngineerFilter(eng.name); setFilterEngineerSearch(eng.name); setFilterEngineerDropdownOpen(false) }} className={cn("w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors", engineerFilter === eng.name ? "bg-blue-50 text-blue-700" : "text-gray-900")}>{eng.name}</button>
-              ))}
-            </div>
-          )}
+          <div className="w-full sm:w-48">
+            <Select
+              options={[
+                { value: "", label: "All Call Types" },
+                ...callTypes.map((c) => ({ value: c, label: c })),
+              ]}
+              value={callTypeFilter}
+              onChange={(e) => setCallTypeFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-48">
+            <Select
+              options={[
+                { value: "", label: "All Categories" },
+                ...customerCategories.map((c) => ({ value: c, label: c })),
+              ]}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-44">
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start date" />
+          </div>
+          <div className="w-full sm:w-44">
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End date" />
+          </div>
         </div>
-        <div className="w-full sm:w-48">
-          <Select
-            options={[
-              { value: "", label: "All Call Types" },
-              ...callTypes.map((c) => ({ value: c, label: c })),
-            ]}
-            value={callTypeFilter}
-            onChange={(e) => setCallTypeFilter(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-48">
-          <Select
-            options={[
-              { value: "", label: "All Categories" },
-              ...customerCategories.map((c) => ({ value: c, label: c })),
-            ]}
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-44">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start date" />
-        </div>
-        <div className="w-full sm:w-44">
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End date" />
-        </div>
-      </div>
-      {filteredTasks.length === 0 ? (
-        <Card><CardContent className="py-16"><div className="text-center"><Timer className="w-12 h-12 mx-auto text-slate-300 mb-3" /><p className="text-slate-500">{localTasks.length === 0 ? "Queue is empty" : "No calls/cases match your filters"}</p><p className="text-sm text-slate-400 mt-1">{localTasks.length === 0 ? "Add calls/cases from the Assign Call/Case tab" : "Try adjusting your filter criteria"}</p></div></CardContent></Card>
-      ) : (
-        filteredTasks.map((item) => {
-          const engineerName = item.assignedEngineer?.name || "N/A"
-          const receivedName = item.receivedBy?.name || "N/A"
-          return (
-            <Card key={item._id}>
+        {filteredTasks.length === 0 ? (
+          <Card><CardContent className="py-16"><div className="text-center"><Timer className="w-12 h-12 mx-auto text-slate-300 mb-3" /><p className="text-slate-500">{localTasks.length === 0 ? "Queue is empty" : "No calls/cases match your filters"}</p><p className="text-sm text-slate-400 mt-1">{localTasks.length === 0 ? "Add calls/cases from the Assign Call/Case tab" : "Try adjusting your filter criteria"}</p></div></CardContent></Card>
+        ) : (
+          filteredTasks.map((item) => {
+            const engineerName = item.assignedEngineer?.name || "N/A"
+            const receivedName = item.receivedBy?.name || "N/A"
+            return (
+              <Card
+                key={item._id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, item._id)}
+                onDragEnd={handleDragEnd}
+                className={cn("transition-opacity", draggedTaskId === item._id && "opacity-50", assigningToEngineer.has(item._id) && "opacity-50 pointer-events-none")}
+              >
               <div onClick={() => setExpandedCardId(expandedCardId === item._id ? null : item._id)} className="cursor-pointer">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between flex-wrap gap-2">
@@ -905,6 +1112,7 @@ function QueueTab({
                         <CheckCircle className="w-3 h-3" /> Saved
                       </span>
                     )}
+                    <span className="text-[10px] text-slate-400 hidden sm:inline">Drag to assign</span>
                     <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setViewingTask(item) }}>
                       <Eye className="w-4 h-4 mr-1" /> View
                     </Button>
@@ -1077,6 +1285,21 @@ function QueueTab({
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const gaps = [
+                    item.gapAssignedToAcknowledge,
+                    item.gapAcknowledgeToTravelStarted,
+                    item.gapTravelStartedToCheckedIn,
+                    item.gapCheckedInToChecklistSubmitted,
+                  ]
+                  const totalMin = gaps.reduce((sum, g) => sum + getMinutesGap(g), 0)
+                  if (totalMin === 0) return null
+                  return (
+                    <div className="mt-2 text-sm text-slate-600">
+                      Total Estimated Time: <span className="font-semibold text-slate-800">{formatDuration(totalMin)}</span>
+                    </div>
+                  )
+                })()}
                 <div className="mt-4 flex justify-end gap-2">
                   {!savedSet.has(item._id) ? (
                     <Button size="sm" onClick={() => handleSave(item)} disabled={savingSet.has(item._id)} className="bg-teal-600 hover:bg-teal-700">
@@ -1111,11 +1334,109 @@ function QueueTab({
               <div><p className="text-slate-500 font-medium">Call Type</p><p className="text-slate-900">{viewingTask.callType}</p></div>
               <div><p className="text-slate-500 font-medium">Category</p><p className="text-slate-900">{viewingTask.customerCategory}</p></div>
               <div><p className="text-slate-500 font-medium">Location</p><p className="text-slate-900">{viewingTask.location}</p></div>
+              <div><p className="text-slate-500 font-medium">Call Record Date</p><p className="text-slate-900">{formatDateTime(viewingTask.callRecordDate)}</p></div>
             </div>
             <div><p className="text-slate-500 font-medium">Problem</p><p className="text-slate-900">{viewingTask.problem}</p></div>
           </div>
         )}
       </Dialog>
+        </div>
+        {engineerPanelOpen && (
+          <div className="w-80 shrink-0">
+            <Card className="sticky top-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Engineers — Drag tasks here
+                </CardTitle>
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input value={engineerPanelSearch} onChange={(e) => setEngineerPanelSearch(e.target.value)} placeholder="Search engineer..." className="pl-9" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-2 max-h-[70vh] overflow-y-auto">
+                {filteredEngineerList.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">No engineers found</p>
+                ) : (
+                  filteredEngineerList.map((eng) => {
+                    const queuedTasks = (engineerAssignedTasks[eng._id] || []).filter((t: any) => t.status === "Queued" && t.autoAssignedFromQueue)
+                    const isExpanded = expandedEngineers.has(eng._id)
+                    const isDropTarget = dropTargetEngineer === eng._id
+                    const sortedTasks = [...queuedTasks].sort((a: any, b: any) => (a.priority || 999) - (b.priority || 999))
+                    return (
+                      <div
+                        key={eng._id}
+                        className={cn(
+                          "mb-2 rounded-lg border transition-colors",
+                          isDropTarget ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"
+                        )}
+                        onDragOver={(e) => handleEngineerDragOver(e, eng._id)}
+                        onDragLeave={handleEngineerDragLeave}
+                        onDrop={(e) => handleEngineerDrop(e, eng._id)}
+                      >
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <div
+                            onClick={() => {
+                              setExpandedEngineers((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(eng._id)) next.delete(eng._id)
+                                else next.add(eng._id)
+                                return next
+                              })
+                            }}
+                            className="flex items-center gap-2 flex-1 cursor-pointer min-w-0"
+                          >
+                            <ChevronRight className={cn("w-3 h-3 text-slate-400 transition-transform shrink-0", isExpanded && "rotate-90")} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">{eng.name}</p>
+                              <p className="text-[10px] text-slate-400">{eng.role}</p>
+                            </div>
+                            {queuedTasks.length > 0 && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded shrink-0">{queuedTasks.length} queued</span>}
+                          </div>
+                          {queuedTasks.length > 0 && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleAssignEngineer(eng._id)}
+                              disabled={assigningEngineerSet.has(eng._id)}
+                              className="h-6 px-2 text-[10px] bg-green-600 hover:bg-green-700 shrink-0"
+                            >
+                              {assigningEngineerSet.has(eng._id) ? <Loader2 className="w-3 h-3 animate-spin" /> : "Assign"}
+                            </Button>
+                          )}
+                        </div>
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 px-3 py-2 space-y-1">
+                            {sortedTasks.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 py-2 text-center">Drag tasks here to assign</p>
+                            ) : (
+                              sortedTasks.map((t: any) => (
+                                <div key={t._id} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs bg-white text-slate-700">
+                                  {t.priority > 0 && <span className="font-bold text-[10px] bg-amber-100 text-amber-800 px-1 rounded">#{t.priority}</span>}
+                                  <span className="flex-1 truncate">{t.customerName}</span>
+                                  <span className="text-[10px] font-medium text-blue-600">Queued</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFromEngineer(t._id)}
+                                    disabled={removingTaskId === t._id}
+                                    className="text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                                    title="Remove from queue"
+                                  >
+                                    {removingTaskId === t._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -1283,7 +1604,9 @@ export default function TaskAssignPage() {
     { id: "queue" as TabType, label: "Call/Case Queue", icon: Timer },
     { id: "assign" as TabType, label: "Assign Call/Case", icon: PlusCircle },
     { id: "list" as TabType, label: "Call/Case List", icon: List },
+    { id: "status" as TabType, label: "Status", icon: TableProperties },
     { id: "canceled" as TabType, label: "Canceled", icon: Ban },
+    { id: "breaks" as TabType, label: "Breaks", icon: Coffee },
   ]
 
   return (
@@ -1328,8 +1651,10 @@ export default function TaskAssignPage() {
             />
           )}
           {activeTab === "assign" && <AssignForm users={users} allUsers={allUsers} companies={companies} customerCategories={customerCategories} callTypes={callTypes} departments={departments} productCategories={productCategories} productTypes={productTypes} modelNames={modelNames} problemOptions={problemOptions} onSuccess={() => { refreshQueue(); setActiveTab("queue") }} />}
-          {activeTab === "list" && user && <ServiceTaskList refreshKey={refreshKey} userId={user._id} />}
+          {activeTab === "list" && user && <ServiceTaskList refreshKey={refreshKey} userId={user._id} showResumeWork={false} />}
+          {activeTab === "status" && user && <ServiceTaskList refreshKey={refreshKey} userId={user._id} statusView showResumeWork={false} />}
           {activeTab === "canceled" && user && <CanceledTab userId={user._id} onRefresh={refreshList} />}
+          {activeTab === "breaks" && <BreaksTab users={users} />}
         </>
       )}
     </div>

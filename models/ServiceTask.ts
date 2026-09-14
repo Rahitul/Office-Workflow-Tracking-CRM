@@ -9,6 +9,7 @@ export type ServiceTaskStatus =
   | "Checklist Submitted"
   | "Completed"
   | "Cancelled"
+  | "On Break"
 
 export interface IServiceTask extends Document {
   _id: mongoose.Types.ObjectId
@@ -54,6 +55,8 @@ export interface IServiceTask extends Document {
   completedLat?: number
   completedLng?: number
   createdBy: mongoose.Types.ObjectId
+  autoAssignedFromQueue: boolean
+  assignedFromQueueAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -79,7 +82,7 @@ const ServiceTaskSchema = new Schema<IServiceTask>(
     priority: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["Queued", "Assigned", "Acknowledge", "Travel Started", "Checked In", "Checklist Submitted", "Completed", "Cancelled"],
+      enum: ["Queued", "Assigned", "Acknowledge", "Travel Started", "Checked In", "Checklist Submitted", "Completed", "Cancelled", "On Break"],
       default: "Queued",
     },
     fromLocation: { type: String, default: "" },
@@ -106,6 +109,8 @@ const ServiceTaskSchema = new Schema<IServiceTask>(
     completedLat: { type: Number },
     completedLng: { type: Number },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    autoAssignedFromQueue: { type: Boolean, default: false },
+    assignedFromQueueAt: { type: Date },
   },
   {
     timestamps: true,
