@@ -376,8 +376,8 @@ export default function MachineDetailPage() {
                       <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.scan || "0"}</td>
                       <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.total || "0"}</td>
                       <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.printerHeadLife || "0"}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.attendTime ? new Date(record.attendTime).toLocaleString() : "—"}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.endTime ? new Date(record.endTime).toLocaleString() : "—"}</td>
+                      <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.attendTime ? new Date(record.attendTime).toLocaleTimeString() : "—"}</td>
+                      <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.endTime ? new Date(record.endTime).toLocaleTimeString() : "—"}</td>
                       <td className="px-4 py-3 text-xs text-slate-600 align-top whitespace-normal min-w-[200px]" title={record.userComments || ""}>{record.userComments || "—"}</td>
                     </tr>
                   ))}
@@ -449,11 +449,11 @@ export default function MachineDetailPage() {
             </div>
             <div>
               <Label>Attend Time</Label>
-              <Input type="datetime-local" value={shForm.attendTime} onChange={(e) => setShForm((p) => ({ ...p, attendTime: e.target.value }))} />
+              <Input type="time" value={shForm.attendTime} onChange={(e) => setShForm((p) => ({ ...p, attendTime: e.target.value }))} />
             </div>
             <div>
               <Label>End Time</Label>
-              <Input type="datetime-local" value={shForm.endTime} onChange={(e) => setShForm((p) => ({ ...p, endTime: e.target.value }))} />
+              <Input type="time" value={shForm.endTime} onChange={(e) => setShForm((p) => ({ ...p, endTime: e.target.value }))} />
             </div>
             <div className="md:col-span-2">
               <Label>Problem</Label>

@@ -66,6 +66,15 @@ export default function AnalyticsPage() {
   const [endDate, setEndDate] = useState("")
   const [selectedUser, setSelectedUser] = useState("all")
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"overview" | "visits">("overview")
+  const [visitSearch, setVisitSearch] = useState("")
+  const [visitFilterPurpose, setVisitFilterPurpose] = useState("all")
+  const [visitFilterOutcome, setVisitFilterOutcome] = useState("all")
+  const [visitPage, setVisitPage] = useState(1)
+  const VISITS_PER_PAGE = 10
+
+  const PURPOSE_OPTIONS = ["Opportunity Advancement", "Opportunity Creation", "Relationship & Account Management", "Commercial / Control", "N/A"]
+  const OUTCOME_OPTIONS = ["Advanced / Positive", "Neutral – Follow up required", "Delayed", "Lost / Negative", "N/A"]
 
   useEffect(() => {
     fetchData()
@@ -260,6 +269,31 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      <div className="flex gap-1 border-b border-slate-200">
+        <button
+          onClick={() => { setActiveTab("overview"); setStartDate(""); setEndDate(""); setSelectedUser("all"); setVisitSearch(""); setVisitFilterPurpose("all"); setVisitFilterOutcome("all"); setVisitPage(1) }}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "overview"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => { setActiveTab("visits"); setStartDate(""); setEndDate(""); setSelectedUser("all"); setVisitSearch(""); setVisitFilterPurpose("all"); setVisitFilterOutcome("all"); setVisitPage(1) }}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "visits"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Visits
+        </button>
+      </div>
+
+      {activeTab === "overview" && (
+      <>
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle className="text-lg text-slate-900 flex items-center gap-2">
@@ -645,6 +679,212 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </>
+      )}
+      </>
+      )}
+
+      {activeTab === "visits" && (
+        <div className="space-y-6">
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="border-b border-slate-100 pb-3">
+              <CardTitle className="text-lg text-slate-900 flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filters
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-slate-500">Start Date</Label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-slate-500">End Date</Label>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-slate-500">User</Label>
+                  <Select
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                    options={[{ value: "all", label: "All Users" }, ...users.map(u => ({ value: u._id, label: u.name }))]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-slate-500">Purpose</Label>
+                  <Select
+                    value={visitFilterPurpose}
+                    onChange={(e) => { setVisitFilterPurpose(e.target.value); setVisitPage(1) }}
+                    options={[{ value: "all", label: "All Purposes" }, ...PURPOSE_OPTIONS.map(p => ({ value: p, label: p }))]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-slate-500">Outcome</Label>
+                  <Select
+                    value={visitFilterOutcome}
+                    onChange={(e) => { setVisitFilterOutcome(e.target.value); setVisitPage(1) }}
+                    options={[{ value: "all", label: "All Outcomes" }, ...OUTCOME_OPTIONS.map(o => ({ value: o, label: o }))]}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={handleFilter} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <Search className="h-4 w-4 mr-2" /> Filter
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-slate-900 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-purple-600" />
+                  All Visits
+                </CardTitle>
+                <div className="relative">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search customer..."
+                    value={visitSearch}
+                    onChange={(e) => { setVisitSearch(e.target.value); setVisitPage(1) }}
+                    className="pl-9 w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const allVisits = activities.flatMap((a) =>
+                  (a.visits || []).map((v) => ({
+                    date: a.activityDate,
+                    userName: a.userId?.name || "Unknown",
+                    customerName: v.customerName,
+                    primaryPurpose: v.primaryPurpose,
+                    productsDiscussed: v.productsDiscussed,
+                    outcome: v.outcome,
+                    nextActionRequired: v.nextActionRequired,
+                    nextActionDate: v.nextActionDate,
+                  }))
+                )
+
+                const filtered = allVisits.filter((v) => {
+                  if (visitSearch && !v.customerName.toLowerCase().includes(visitSearch.toLowerCase())) return false
+                  if (visitFilterPurpose !== "all" && v.primaryPurpose !== visitFilterPurpose) return false
+                  if (visitFilterOutcome !== "all" && v.outcome !== visitFilterOutcome) return false
+                  return true
+                })
+
+                const totalPages = Math.ceil(filtered.length / VISITS_PER_PAGE)
+                const paginated = filtered.slice((visitPage - 1) * VISITS_PER_PAGE, visitPage * VISITS_PER_PAGE)
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-20 text-center">
+                      <p className="text-slate-500">No visits found.</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-slate-500">Showing {Math.min((visitPage - 1) * VISITS_PER_PAGE + 1, filtered.length)}–{Math.min(visitPage * VISITS_PER_PAGE, filtered.length)} of {filtered.length} visits</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Date</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">User</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Customer</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Purpose</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Products</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Outcome</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Next Action</th>
+                            <th className="text-left py-3 px-4 font-semibold text-slate-600">Next Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginated.map((v, i) => (
+                            <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                {new Date(v.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </td>
+                              <td className="py-3 px-4 font-medium">{v.userName}</td>
+                              <td className="py-3 px-4 font-medium">{v.customerName}</td>
+                              <td className="py-3 px-4">{v.primaryPurpose}</td>
+                              <td className="py-3 px-4">{v.productsDiscussed?.join(", ") || "—"}</td>
+                              <td className="py-3 px-4">
+                                <Badge className={
+                                  v.outcome?.includes("Positive") ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                                  v.outcome?.includes("Negative") ? "bg-red-100 text-red-700 border-red-200" :
+                                  "bg-slate-100 text-slate-700 border-slate-200"
+                                }>
+                                  {v.outcome}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 max-w-[200px] truncate">{v.nextActionRequired}</td>
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                {v.nextActionDate ? new Date(v.nextActionDate).toLocaleDateString() : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={visitPage === 1}
+                          onClick={() => setVisitPage(visitPage - 1)}
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter((p) => p === 1 || p === totalPages || Math.abs(p - visitPage) <= 2)
+                            .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                              if (idx > 0 && typeof arr[idx - 1] === "number" && p - (arr[idx - 1] as number) > 1) {
+                                acc.push("...")
+                              }
+                              acc.push(p)
+                              return acc
+                            }, [])
+                            .map((p, idx) =>
+                              typeof p === "string" ? (
+                                <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
+                              ) : (
+                                <Button
+                                  key={p}
+                                  variant={visitPage === p ? "default" : "outline"}
+                                  size="sm"
+                                  className={visitPage === p ? "bg-blue-600 hover:bg-blue-700" : ""}
+                                  onClick={() => setVisitPage(p)}
+                                >
+                                  {p}
+                                </Button>
+                              )
+                            )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={visitPage === totalPages}
+                          onClick={() => setVisitPage(visitPage + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   )

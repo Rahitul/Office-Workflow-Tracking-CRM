@@ -83,7 +83,7 @@ function formatPeriod(days: number) {
 }
 
 export default function MachineListPage() {
-  const [activeTab, setActiveTab] = useState<"form" | "info" | "machines">("form")
+  const [activeTab, setActiveTab] = useState<"form" | "info" | "machines" | "serviceRecord">("form")
   const [companies, setCompanies] = useState<Company[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [machines, setMachines] = useState<Machine[]>([])
@@ -112,6 +112,20 @@ export default function MachineListPage() {
   const [shSubmitting, setShSubmitting] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [linkRegenerating, setLinkRegenerating] = useState(false)
+
+  const [allServiceRecords, setAllServiceRecords] = useState<any[]>([])
+  const [serviceRecordLoading, setServiceRecordLoading] = useState(false)
+  const [srFilterMachineId, setSrFilterMachineId] = useState("")
+  const [srFilterCustomer, setSrFilterCustomer] = useState("")
+  const [srFilterBrand, setSrFilterBrand] = useState("")
+  const [srFilterModel, setSrFilterModel] = useState("")
+  const [srFilterSerial, setSrFilterSerial] = useState("")
+  const [srFilterProductCategory, setSrFilterProductCategory] = useState("")
+  const [srFilterDepartment, setSrFilterDepartment] = useState("")
+  const [srFilterLocation, setSrFilterLocation] = useState("")
+  const [srSearch, setSrSearch] = useState("")
+  const [srDateFrom, setSrDateFrom] = useState("")
+  const [srDateTo, setSrDateTo] = useState("")
   const [engineerSearch, setEngineerSearch] = useState("")
   const [engineerDropdownOpen, setEngineerDropdownOpen] = useState(false)
   const engineerDropdownRef = useRef<HTMLDivElement>(null)
@@ -223,14 +237,51 @@ export default function MachineListPage() {
     return !q || m.customerName.toLowerCase().includes(q) || m.machineId.toLowerCase().includes(q) || m.brandName.toLowerCase().includes(q) || m.modelName.toLowerCase().includes(q) || m.serialNumber.toLowerCase().includes(q) || (m.location || "").toLowerCase().includes(q) || (m.department || "").toLowerCase().includes(q)
   })
 
+  const srBrandOptions = Array.from(new Set(allServiceRecords.map((r: any) => r.machineId?.brandName).filter(Boolean))).sort()
+  const srModelOptions = Array.from(new Set(allServiceRecords.map((r: any) => r.machineId?.modelName).filter(Boolean))).sort()
+  const srCategoryOptions = Array.from(new Set(allServiceRecords.map((r: any) => r.machineId?.department).filter(Boolean))).sort()
+  const srLocationOptions = Array.from(new Set(allServiceRecords.map((r: any) => r.machineId?.location).filter(Boolean))).sort()
+
+  const filteredServiceRecords = allServiceRecords.filter((r: any) => {
+    const m = r.machineId
+    if (!m) return false
+    if (srFilterMachineId && !(m.machineId || "").toLowerCase().includes(srFilterMachineId.toLowerCase())) return false
+    if (srFilterCustomer && !(m.customerName || "").toLowerCase().includes(srFilterCustomer.toLowerCase())) return false
+    if (srFilterBrand && !(m.brandName || "").toLowerCase().includes(srFilterBrand.toLowerCase())) return false
+    if (srFilterModel && !(m.modelName || "").toLowerCase().includes(srFilterModel.toLowerCase())) return false
+    if (srFilterSerial && !(m.serialNumber || "").toLowerCase().includes(srFilterSerial.toLowerCase())) return false
+    if (srFilterProductCategory && !(m.department || "").toLowerCase().includes(srFilterProductCategory.toLowerCase())) return false
+    if (srFilterDepartment && !(m.department || "").toLowerCase().includes(srFilterDepartment.toLowerCase())) return false
+    if (srFilterLocation && !(m.location || "").toLowerCase().includes(srFilterLocation.toLowerCase())) return false
+    if (srDateFrom) {
+      const callDate = new Date(r.callDate)
+      const from = new Date(srDateFrom)
+      if (callDate < from) return false
+    }
+    if (srDateTo) {
+      const callDate = new Date(r.callDate)
+      const to = new Date(srDateTo)
+      to.setHours(23, 59, 59, 999)
+      if (callDate > to) return false
+    }
+    if (srSearch) {
+      const q = srSearch.toLowerCase()
+      const machineStr = `${m.machineId || ""} ${m.customerName || ""} ${m.brandName || ""} ${m.modelName || ""} ${m.serialNumber || ""} ${m.location || ""} ${m.department || ""}`.toLowerCase()
+      const engineerName = (r.engineerId?.name || "").toLowerCase()
+      const problem = (r.problem || "").toLowerCase()
+      if (!machineStr.includes(q) && !engineerName.includes(q) && !problem.includes(q)) return false
+    }
+    return true
+  })
+
   const filterBrandOptions = Array.from(new Set(machines.map(m => m.brandName).filter(Boolean))).sort()
   const filterModelOptions = Array.from(new Set(machines.map(m => m.modelName).filter(Boolean))).sort()
   const filterProductCategoryOptions = Array.from(new Set(machines.map(m => m.productCategory).filter(Boolean))).sort()
   const filterDepartmentOptions = Array.from(new Set(machines.map(m => m.department).filter(Boolean))).sort()
   const filterLocationOptions = Array.from(new Set(machines.map(m => m.location).filter(Boolean))).sort()
 
-  const hasActiveFilter = Boolean(filterMachineId || filterCustomer || filterBrand || filterModel || filterSerial || filterProductCategory || filterDepartment || filterLocation)
-  const selectedMachine = hasActiveFilter ? filteredMachines[0] : machines[0]
+  const hasInfoFilter = Boolean(filterMachineId || filterCustomer || filterSerial)
+  const selectedMachine = hasInfoFilter ? filteredMachines[0] : null
   const billDateObj = selectedMachine?.billDate ? new Date(selectedMachine.billDate) : null
   const warrantyExpiredObj = selectedMachine?.warrantyExpired ? new Date(selectedMachine.warrantyExpired) : null
   const totalWarrantyDays = billDateObj && warrantyExpiredObj ? dayDiff(billDateObj, warrantyExpiredObj) : null
@@ -250,9 +301,24 @@ export default function MachineListPage() {
   }, [])
 
   useEffect(() => {
+    setFilterMachineId("")
+    setFilterCustomer("")
+    setFilterSerial("")
+    setFilterBrand("")
+    setFilterModel("")
+    setFilterProductCategory("")
+    setFilterDepartment("")
+    setFilterLocation("")
+    setMachineListSearch("")
     if (activeTab === "info") {
       filterMachineIdRef.current?.focus()
       filterMachineIdRef.current?.select()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === "serviceRecord") {
+      fetchAllServiceHistory()
     }
   }, [activeTab])
 
@@ -349,6 +415,19 @@ export default function MachineListPage() {
       console.error("Failed to fetch machines:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAllServiceHistory = async () => {
+    setServiceRecordLoading(true)
+    try {
+      const res = await fetch("/api/service-history", { credentials: "include" })
+      const data = await res.json()
+      setAllServiceRecords(data.records || [])
+    } catch (error) {
+      console.error("Failed to fetch service history:", error)
+    } finally {
+      setServiceRecordLoading(false)
     }
   }
 
@@ -556,6 +635,16 @@ export default function MachineListPage() {
           }`}
         >
           Machine list
+        </button>
+        <button
+          onClick={() => setActiveTab("serviceRecord")}
+          className={`px-6 py-3 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === "serviceRecord"
+              ? "bg-white text-teal-700 border border-b-white border-slate-200 -mb-px"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Service Record
         </button>
       </div>
 
@@ -984,7 +1073,7 @@ export default function MachineListPage() {
             ) : !selectedMachine ? (
               <div className="text-center py-12 text-slate-500">
                 <Monitor className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                <p>No machines found</p>
+                <p className="text-base font-medium">Enter ID, Customer Name or Serial Number to see your card</p>
               </div>
             ) : (
               <>
@@ -1180,8 +1269,8 @@ export default function MachineListPage() {
                               <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.scan || "0"}</td>
                               <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.total || "0"}</td>
                               <td className="px-4 py-3 text-slate-800 text-center text-xs align-top">{record.printerHeadLife || "0"}</td>
-                              <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.attendTime ? new Date(record.attendTime).toLocaleString() : "—"}</td>
-                              <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.endTime ? new Date(record.endTime).toLocaleString() : "—"}</td>
+                              <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.attendTime ? new Date(record.attendTime).toLocaleTimeString() : "—"}</td>
+                              <td className="px-4 py-3 text-xs text-slate-600 align-top">{record.endTime ? new Date(record.endTime).toLocaleTimeString() : "—"}</td>
                               <td className="px-4 py-3 text-xs text-slate-600 align-top whitespace-normal min-w-[200px]" title={record.userComments || ""}>{record.userComments || "—"}</td>
                             </tr>
                           ))}
@@ -1374,6 +1463,196 @@ export default function MachineListPage() {
         </Card>
       )}
 
+      {activeTab === "serviceRecord" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Service Record</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">ID</label>
+                <Input
+                  value={srFilterMachineId}
+                  onChange={(e) => setSrFilterMachineId(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Filter ID..."
+                  inputMode="numeric"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Customer</label>
+                <Input
+                  value={srFilterCustomer}
+                  onChange={(e) => setSrFilterCustomer(e.target.value)}
+                  placeholder="Filter customer..."
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Brand</label>
+                <Input
+                  value={srFilterBrand}
+                  onChange={(e) => setSrFilterBrand(e.target.value)}
+                  placeholder="Type or select brand..."
+                  list="srListBrandOpts"
+                  className="h-8 text-sm"
+                />
+                <datalist id="srListBrandOpts">
+                  {srBrandOptions.map(v => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Model</label>
+                <Input
+                  value={srFilterModel}
+                  onChange={(e) => setSrFilterModel(e.target.value)}
+                  placeholder="Type or select model..."
+                  list="srListModelOpts"
+                  className="h-8 text-sm"
+                />
+                <datalist id="srListModelOpts">
+                  {srModelOptions.map(v => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Serial No</label>
+                <Input
+                  value={srFilterSerial}
+                  onChange={(e) => setSrFilterSerial(e.target.value)}
+                  placeholder="Filter serial..."
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Product Category</label>
+                <Input
+                  value={srFilterProductCategory}
+                  onChange={(e) => setSrFilterProductCategory(e.target.value)}
+                  placeholder="Type or select category..."
+                  list="srListCatOpts"
+                  className="h-8 text-sm"
+                />
+                <datalist id="srListCatOpts">
+                  {srCategoryOptions.map(v => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Department</label>
+                <Input
+                  value={srFilterDepartment}
+                  onChange={(e) => setSrFilterDepartment(e.target.value)}
+                  placeholder="Type or select dept..."
+                  list="srListDeptOpts"
+                  className="h-8 text-sm"
+                />
+                <datalist id="srListDeptOpts">
+                  {srCategoryOptions.map(v => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Location</label>
+                <Input
+                  value={srFilterLocation}
+                  onChange={(e) => setSrFilterLocation(e.target.value)}
+                  placeholder="Type or select location..."
+                  list="srListLocationOpts"
+                  className="h-8 text-sm"
+                />
+                <datalist id="srListLocationOpts">
+                  {srLocationOptions.map(v => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Date From</label>
+                <Input
+                  type="date"
+                  value={srDateFrom}
+                  onChange={(e) => setSrDateFrom(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Date To</label>
+                <Input
+                  type="date"
+                  value={srDateTo}
+                  onChange={(e) => setSrDateTo(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="relative mb-4 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                value={srSearch}
+                onChange={(e) => setSrSearch(e.target.value)}
+                placeholder="Search by ID, customer, engineer, problem..."
+                className="pl-9"
+              />
+            </div>
+            {serviceRecordLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : filteredServiceRecords.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200">
+                <History className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                <p>No service records found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="text-sm whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Machine ID</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Customer</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Brand</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Model</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Serial No</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Engineer</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200 min-w-[200px]">Problem</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200 min-w-[200px]">Solution</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">E/W</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">BW Meter</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Color Meter</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200">Total</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 border-b border-slate-200 min-w-[200px]">Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredServiceRecords.map((record: any) => (
+                      <tr
+                        key={record._id}
+                        onClick={() => { setFilterMachineId(record.machineId?.machineId || ""); setActiveTab("info") }}
+                        className="hover:bg-teal-50 cursor-pointer border-b border-slate-100 last:border-b-0"
+                        title="Click to view machine info"
+                      >
+                        <td className="px-4 py-3 text-slate-900 text-xs font-medium">{record.machineId?.machineId || "—"}</td>
+                        <td className="px-4 py-3 text-slate-900 text-xs">{record.machineId?.customerName || "—"}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{record.machineId?.brandName || "—"}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{record.machineId?.modelName || "—"}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{record.machineId?.serialNumber || "—"}</td>
+                        <td className="px-4 py-3 text-slate-900 text-xs">{new Date(record.callDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs max-w-[150px] truncate">{record.engineerId?.name || "N/A"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-800 align-top whitespace-normal min-w-[200px]">{record.problem || "—"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-800 align-top whitespace-normal min-w-[200px]">{record.solution || "—"}</td>
+                        <td className="px-4 py-3 text-slate-800 text-center text-xs">{record.ewTaka || "—"}</td>
+                        <td className="px-4 py-3 text-slate-800 text-center text-xs">{record.bwMeterReading || "0"}</td>
+                        <td className="px-4 py-3 text-slate-800 text-center text-xs">{record.colorMeterReading || "0"}</td>
+                        <td className="px-4 py-3 text-slate-800 text-center text-xs">{record.total || "0"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 align-top whitespace-normal min-w-[200px]" title={record.userComments || ""}>{record.userComments || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={shDialogOpen} onClose={() => setShDialogOpen(false)} title="Add Service History">
         <form onSubmit={async (e) => {
           e.preventDefault()
@@ -1439,11 +1718,11 @@ export default function MachineListPage() {
             </div>
             <div>
               <Label>Attend Time</Label>
-              <Input type="datetime-local" value={shForm.attendTime} onChange={(e) => setShForm((p) => ({ ...p, attendTime: e.target.value }))} />
+              <Input type="time" value={shForm.attendTime} onChange={(e) => setShForm((p) => ({ ...p, attendTime: e.target.value }))} />
             </div>
             <div>
               <Label>End Time</Label>
-              <Input type="datetime-local" value={shForm.endTime} onChange={(e) => setShForm((p) => ({ ...p, endTime: e.target.value }))} />
+              <Input type="time" value={shForm.endTime} onChange={(e) => setShForm((p) => ({ ...p, endTime: e.target.value }))} />
             </div>
             <div className="md:col-span-2">
               <Label>Problem</Label>

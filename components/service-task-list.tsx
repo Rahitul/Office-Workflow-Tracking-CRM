@@ -17,7 +17,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card"
-import { ClipboardList, Loader2, CheckCircle2, Clock, FileText, MapPin, Map as MapIcon, Search, X, ArrowLeftRight, Ban, GripVertical, ChevronDown, Flag } from "lucide-react"
+import { ClipboardList, Loader2, CheckCircle2, Clock, FileText, MapPin, Map as MapIcon, Search, X, ArrowLeftRight, Ban, GripVertical, ChevronDown, Flag, Coffee, Timer, Download } from "lucide-react"
 import { Dialog } from "@/components/ui/dialog"
 
 import ChecklistForm from "@/components/checklist-form"
@@ -63,6 +63,8 @@ export interface TaskData {
   completedLat?: number
   completedLng?: number
   createdBy: { _id: string; name: string; email: string }
+  autoAssignedFromQueue: boolean
+  assignedFromQueueAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -75,17 +77,18 @@ const statusColors: Record<string, string> = {
   "Checklist Submitted": "bg-indigo-100 text-indigo-800",
   "Completed": "bg-green-100 text-green-800",
   "Cancelled": "bg-red-100 text-red-800",
+  "On Break": "bg-amber-100 text-amber-800",
 }
 
 export const gapPairs: { from: string; to: string; field: string; fromTs: string; toTs: string }[] = [
-  { from: "Assigned", to: "Acknowledge", field: "gapAssignedToAcknowledge", fromTs: "createdAt", toTs: "acknowledgedAt" },
+  { from: "Assigned", to: "Acknowledge", field: "gapAssignedToAcknowledge", fromTs: "assignedFromQueueAt", toTs: "acknowledgedAt" },
   { from: "Acknowledge", to: "Travel Started", field: "gapAcknowledgeToTravelStarted", fromTs: "acknowledgedAt", toTs: "travelStartedAt" },
   { from: "Travel Started", to: "Checked In", field: "gapTravelStartedToCheckedIn", fromTs: "travelStartedAt", toTs: "checkedInAt" },
   { from: "Checked In", to: "Checklist Submitted", field: "gapCheckedInToChecklistSubmitted", fromTs: "checkedInAt", toTs: "checklistSubmittedAt" },
   { from: "Checklist Submitted", to: "Completed", field: "gapChecklistSubmittedToCompleted", fromTs: "checklistSubmittedAt", toTs: "completedAt" },
 ]
 
-const statusOrder = ["Assigned", "Acknowledge", "Travel Started", "Checked In", "Checklist Submitted", "Completed"]
+const statusOrder = ["Assigned", "Acknowledge", "Travel Started", "Checked In", "Checklist Submitted", "Completed", "On Break"]
 
 export function getMinutesGap(gap: string): number {
   if (!gap) return 0
@@ -97,7 +100,7 @@ export function getMinutesGap(gap: string): number {
   return total
 }
 
-function formatDuration(totalMinutes: number): string {
+export function formatDuration(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60)
   const mins = Math.round(totalMinutes % 60)
   if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
@@ -112,7 +115,7 @@ function formatDateTime(iso: string) {
   })
 }
 
-export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; userId?: string; onStatusChange: () => void }) {
+export function TaskCard({ task, userId, onStatusChange, showActionButtons = true }: { task: TaskData; userId?: string; onStatusChange: () => void; showActionButtons?: boolean }) {
   const [updating, setUpdating] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState("")
   const [editingPriority, setEditingPriority] = useState(false)
@@ -135,6 +138,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
     let count = 0
     for (const pair of gapPairs) {
       function taskTs(f: string): string | undefined {
+        if (f === "assignedFromQueueAt") return task.assignedFromQueueAt || task.createdAt
         if (f === "createdAt") return task.createdAt
         if (f === "acknowledgedAt") return task.acknowledgedAt
         if (f === "travelStartedAt") return task.travelStartedAt
@@ -151,7 +155,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
         if (f === "gapChecklistSubmittedToCompleted") return task.gapChecklistSubmittedToCompleted
         return ""
       }
-      const fromTs = pair.fromTs === "createdAt" ? task.createdAt : taskTs(pair.fromTs)
+      const fromTs = taskTs(pair.fromTs)
       const toTs = taskTs(pair.toTs)
       if (!fromTs || !toTs) continue
       const actualMin = (new Date(toTs).getTime() - new Date(fromTs).getTime()) / 60000
@@ -194,6 +198,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
           assignedEngineer: transferSelectedId,
           status: "Assigned",
           resetTimestamps: true,
+          notifyAssignee: true,
         }),
         credentials: "include",
       })
@@ -255,7 +260,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
   }, [task._id, task.status])
 
   const currentIdx = statusOrder.indexOf(task.status)
-  const nextStatuses = currentIdx < statusOrder.length - 1 ? statusOrder.slice(currentIdx + 1) : []
+  const nextStatuses = currentIdx < statusOrder.length - 1 ? statusOrder.slice(currentIdx + 1).filter(s => s !== "Checklist Submitted" && s !== "On Break") : []
 
   const handleStatusUpdate = async (newStatus: string) => {
     setUpdating(true)
@@ -374,6 +379,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium", statusColors[task.status] || "bg-gray-100 text-gray-800")}>{task.status}</span>
               <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", expanded && "rotate-180")} />
             </div>
           </div>
@@ -395,7 +401,8 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
               <div><p className="text-slate-500 font-medium">Department</p><p className="text-slate-900">{task.department || "—"}</p></div>
               <div><p className="text-slate-500 font-medium">Phone</p><p className="text-slate-900">{task.contactNumber}</p></div>
               <div><p className="text-slate-500 font-medium">Location</p><p className="text-slate-900 truncate" title={task.location}>{task.location}</p></div>
-              <div><p className="text-slate-500 font-medium">Assigned At</p><p className="text-slate-900">{formatDateTime(task.createdAt)}</p></div>
+              <div><p className="text-slate-500 font-medium">Call Record Date</p><p className="text-slate-900">{formatDateTime(task.callRecordDate)}</p></div>
+              <div><p className="text-slate-500 font-medium">Assigned Date</p><p className="text-slate-900">{task.assignedFromQueueAt ? formatDateTime(task.assignedFromQueueAt) : "—"}</p></div>
             </div>
             <div><p className="text-slate-500 font-medium">Problem</p><p className="text-slate-900 truncate" title={task.problem}>{task.problem}</p></div>
             <div><p className="text-slate-500 font-medium">Call Type / Category</p><p className="text-slate-900">{task.callType} &middot; {task.customerCategory}</p></div>
@@ -465,6 +472,7 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
             <div className="relative pl-8">
               {gapPairs.map((pair, idx) => {
                 function taskTs(t: TaskData, f: string): string | undefined {
+                  if (f === "assignedFromQueueAt") return t.assignedFromQueueAt || t.createdAt
                   if (f === "createdAt") return t.createdAt
                   if (f === "acknowledgedAt") return t.acknowledgedAt
                   if (f === "travelStartedAt") return t.travelStartedAt
@@ -481,9 +489,9 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
                   if (f === "gapChecklistSubmittedToCompleted") return t.gapChecklistSubmittedToCompleted
                   return ""
                 }
-                const fromTs = pair.fromTs === "createdAt" ? task.createdAt : taskTs(task, pair.fromTs)
+                const fromTs = taskTs(task, pair.fromTs)
                 const toTs = taskTs(task, pair.toTs)
-                const fromDate = pair.fromTs === "createdAt" ? new Date(task.createdAt) : fromTs ? new Date(fromTs) : null
+                const fromDate = fromTs ? new Date(fromTs) : null
                 const toDate = toTs ? new Date(toTs) : null
                 const estimatedMin = getMinutesGap(taskGap(task, pair.field))
 
@@ -544,22 +552,77 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
                 )
               })}
             </div>
-            <div className="mt-4">
-              <Button size="sm" variant="outline" onClick={() => setShowMapDialog(true)} className="w-full">
-                <MapIcon className="w-4 h-4 mr-2" />
-                Show Status Map
-              </Button>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" variant="outline" onClick={handleTransferClick} className="flex-1" disabled={cancelling}>
-                <ArrowLeftRight className="w-4 h-4 mr-2" />
-                Transfer
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleCancel} className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300" disabled={cancelling}>
-                {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4 mr-2" />}
-                Cancel
-              </Button>
-            </div>
+            {(() => {
+              function tTs(t: TaskData, f: string): string | undefined {
+                if (f === "assignedFromQueueAt") return t.assignedFromQueueAt || t.createdAt
+                if (f === "createdAt") return t.createdAt
+                if (f === "acknowledgedAt") return t.acknowledgedAt
+                if (f === "travelStartedAt") return t.travelStartedAt
+                if (f === "checkedInAt") return t.checkedInAt
+                if (f === "checklistSubmittedAt") return t.checklistSubmittedAt
+                if (f === "completedAt") return t.completedAt
+                return undefined
+              }
+              function tGap(t: TaskData, f: string): string {
+                if (f === "gapAssignedToAcknowledge") return t.gapAssignedToAcknowledge
+                if (f === "gapAcknowledgeToTravelStarted") return t.gapAcknowledgeToTravelStarted
+                if (f === "gapTravelStartedToCheckedIn") return t.gapTravelStartedToCheckedIn
+                if (f === "gapCheckedInToChecklistSubmitted") return t.gapCheckedInToChecklistSubmitted
+                if (f === "gapChecklistSubmittedToCompleted") return t.gapChecklistSubmittedToCompleted
+                return ""
+              }
+              let totalEstimated = 0
+              let totalActual = 0
+              let actualCount = 0
+              for (const pair of gapPairs) {
+                const estMin = getMinutesGap(tGap(task, pair.field))
+                totalEstimated += estMin
+                const fromTs = tTs(task, pair.fromTs)
+                const toTs = tTs(task, pair.toTs)
+                if (fromTs && toTs) {
+                  const actual = (new Date(toTs).getTime() - new Date(fromTs).getTime()) / 60000
+                  totalActual += actual
+                  actualCount++
+                }
+              }
+              if (totalEstimated === 0 && actualCount === 0) return null
+              const diff = totalActual - totalEstimated
+              const diffColor = actualCount === 0 ? "text-slate-500" : diff <= 0 ? "text-green-600" : diff <= 30 ? "text-yellow-600" : "text-red-600"
+              const diffLabel = actualCount === 0 ? "" : diff <= 0 ? `${formatDuration(Math.abs(diff))} under` : `${formatDuration(diff)} over`
+              return (
+                <div className="mt-3 flex items-center gap-4 text-sm flex-wrap">
+                  <span className="text-slate-600">Total Estimated: <span className="font-semibold text-slate-800">{formatDuration(totalEstimated)}</span></span>
+                  {actualCount > 0 && (
+                    <>
+                      <span className="text-slate-400">|</span>
+                      <span className="text-slate-600">Total Actual: <span className="font-semibold text-slate-800">{formatDuration(totalActual)}</span></span>
+                      <span className="text-slate-400">|</span>
+                      <span className={cn("font-semibold", diffColor)}>{diff > 0 ? "+" : ""}{diffLabel}</span>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+            {showActionButtons && (
+              <>
+                <div className="mt-4">
+                  <Button size="sm" variant="outline" onClick={() => setShowMapDialog(true)} className="w-full">
+                    <MapIcon className="w-4 h-4 mr-2" />
+                    Show Status Map
+                  </Button>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleTransferClick} className="flex-1" disabled={cancelling}>
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                    Transfer
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleCancel} className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300" disabled={cancelling}>
+                    {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4 mr-2" />}
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
@@ -642,40 +705,56 @@ export function TaskCard({ task, userId, onStatusChange }: { task: TaskData; use
   )
 }
 
-export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds }: { refreshKey: number; userId?: string; assignedToUserIds?: string[] }) {
+export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds, statusView, allowDragReorder = true, showActionButtons = true, showResumeWork = true }: { refreshKey: number; userId?: string; assignedToUserIds?: string[]; statusView?: boolean; allowDragReorder?: boolean; showActionButtons?: boolean; showResumeWork?: boolean }) {
   const [tasks, setTasks] = useState<TaskData[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [callTypeFilter, setCallTypeFilter] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [crStartDate, setCrStartDate] = useState("")
+  const [crEndDate, setCrEndDate] = useState("")
+  const [asStartDate, setAsStartDate] = useState(todayStr)
+  const [asEndDate, setAsEndDate] = useState(todayStr)
   const [engineerSearch, setEngineerSearch] = useState("")
   const [engineerFilter, setEngineerFilter] = useState("")
   const [engineerDropdownOpen, setEngineerDropdownOpen] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [dragGroupEngineerId, setDragGroupEngineerId] = useState<string | null>(null)
+  const [collapsedEngineers, setCollapsedEngineers] = useState<Set<string>>(new Set())
   const engineerRef = useRef<HTMLDivElement>(null)
+  const [breakTimers, setBreakTimers] = useState<Record<string, number>>({})
+  const [timerCompletedTask, setTimerCompletedTask] = useState<Record<string, string>>({})
+  const [timerStartingNext, setTimerStartingNext] = useState<Record<string, boolean>>({})
+  const [timerTakingBreak, setTimerTakingBreak] = useState<Record<string, boolean>>({})
+  const [onBreakEngineers, setOnBreakEngineers] = useState<Set<string>>(new Set())
+  const [activeBreakIds, setActiveBreakIds] = useState<Record<string, string>>({})
+  const timerTickRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number, engineerId: string) => {
     setDragIndex(index)
+    setDragGroupEngineerId(engineerId)
     e.dataTransfer.effectAllowed = "move"
   }
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent, index: number, engineerId: string) => {
     e.preventDefault()
-    setDragOverIndex(index)
+    if (dragGroupEngineerId === engineerId) setDragOverIndex(index)
   }
 
-  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, dropIndex: number, engineerId: string) => {
     e.preventDefault()
-    if (dragIndex === null || dragIndex === dropIndex) {
+    if (dragIndex === null || dragIndex === dropIndex || dragGroupEngineerId !== engineerId) {
       setDragIndex(null)
       setDragOverIndex(null)
+      setDragGroupEngineerId(null)
       return
     }
-    const reordered = [...filteredTasks]
+    const group = groupedTasks.find((g) => g.engineer._id === engineerId)
+    if (!group) return
+    const reordered = [...group.tasks]
     const [moved] = reordered.splice(dragIndex, 1)
     reordered.splice(dropIndex, 0, moved)
     const updates = reordered.map((task, i) => ({ id: task._id, newPriority: i + 1, oldPriority: task.priority })).filter((u) => u.newPriority !== u.oldPriority)
@@ -687,12 +766,14 @@ export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds 
     })))
     setDragIndex(null)
     setDragOverIndex(null)
+    setDragGroupEngineerId(null)
     fetchTasks()
   }
 
   const handleDragEnd = () => {
     setDragIndex(null)
     setDragOverIndex(null)
+    setDragGroupEngineerId(null)
   }
 
   useEffect(() => {
@@ -729,25 +810,267 @@ export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds 
     }
   }, [userId])
 
+  const fetchActiveBreaks = useCallback(async () => {
+    try {
+      const res = await fetch("/api/breaks?active=true", { credentials: "include" })
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        const engineersOnBreak = new Set<string>()
+        const breakIdMap: Record<string, string> = {}
+        for (const rec of data.data) {
+          const uid = typeof rec.userId === "object" ? rec.userId._id : rec.userId
+          if (uid) {
+            engineersOnBreak.add(uid)
+            breakIdMap[uid] = rec._id
+          }
+        }
+        setOnBreakEngineers(engineersOnBreak)
+        setActiveBreakIds(breakIdMap)
+      }
+    } catch (e) {
+      console.error("Failed to fetch active breaks:", e)
+    }
+  }, [])
+
   useEffect(() => {
     fetchTasks()
-  }, [refreshKey, fetchTasks])
+    fetchActiveBreaks()
+  }, [refreshKey, fetchTasks, fetchActiveBreaks])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       if (task.status === "Queued" || task.status === "Cancelled") return false
+      if (!task.assignedEngineer?._id) return false
       const matchSearch = !search || task.customerName.toLowerCase().includes(search.toLowerCase()) || task.taskId.toLowerCase().includes(search.toLowerCase()) || task.deviceModel.toLowerCase().includes(search.toLowerCase()) || (task.productCategory || "").toLowerCase().includes(search.toLowerCase()) || (task.productType || "").toLowerCase().includes(search.toLowerCase())
       const matchStatus = !statusFilter || task.status === statusFilter
       const matchCallType = !callTypeFilter || task.callType === callTypeFilter
       const matchCategory = !categoryFilter || task.customerCategory === categoryFilter
-      const taskDate = new Date(task.createdAt)
-      const matchStart = !startDate || taskDate >= new Date(startDate)
-      const matchEnd = !endDate || taskDate <= new Date(endDate + "T23:59:59")
+      const matchCrStart = !crStartDate || new Date(task.callRecordDate) >= new Date(crStartDate)
+      const matchCrEnd = !crEndDate || new Date(task.callRecordDate) <= new Date(crEndDate + "T23:59:59")
+      const matchAsStart = !asStartDate || (task.assignedFromQueueAt && new Date(task.assignedFromQueueAt) >= new Date(asStartDate))
+      const matchAsEnd = !asEndDate || (task.assignedFromQueueAt && new Date(task.assignedFromQueueAt) <= new Date(asEndDate + "T23:59:59"))
       const matchEngineer = !engineerFilter || task.assignedEngineer?.name === engineerFilter
-      const matchBranchUser = !assignedToUserIds || (task.assignedEngineer?._id && assignedToUserIds.includes(task.assignedEngineer._id))
-      return matchSearch && matchStatus && matchCallType && matchCategory && matchStart && matchEnd && matchEngineer && matchBranchUser
+      const matchBranchUser = !assignedToUserIds || assignedToUserIds.includes(task.assignedEngineer._id)
+      return matchSearch && matchStatus && matchCallType && matchCategory && matchCrStart && matchCrEnd && matchAsStart && matchAsEnd && matchEngineer && matchBranchUser
     })
-  }, [tasks, search, statusFilter, callTypeFilter, categoryFilter, startDate, endDate, engineerFilter, assignedToUserIds])
+  }, [tasks, search, statusFilter, callTypeFilter, categoryFilter, crStartDate, crEndDate, asStartDate, asEndDate, engineerFilter, assignedToUserIds])
+
+  const allFilteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const matchSearch = !search || task.customerName.toLowerCase().includes(search.toLowerCase()) || task.taskId.toLowerCase().includes(search.toLowerCase()) || task.deviceModel.toLowerCase().includes(search.toLowerCase()) || (task.productCategory || "").toLowerCase().includes(search.toLowerCase()) || (task.productType || "").toLowerCase().includes(search.toLowerCase())
+      const matchStatus = !statusFilter || task.status === statusFilter
+      const matchCallType = !callTypeFilter || task.callType === callTypeFilter
+      const matchCategory = !categoryFilter || task.customerCategory === categoryFilter
+      const matchCrStart = !crStartDate || new Date(task.callRecordDate) >= new Date(crStartDate)
+      const matchCrEnd = !crEndDate || new Date(task.callRecordDate) <= new Date(crEndDate + "T23:59:59")
+      const matchAsStart = !asStartDate || (task.assignedFromQueueAt && new Date(task.assignedFromQueueAt) >= new Date(asStartDate))
+      const matchAsEnd = !asEndDate || (task.assignedFromQueueAt && new Date(task.assignedFromQueueAt) <= new Date(asEndDate + "T23:59:59"))
+      const matchEngineer = !engineerFilter || task.assignedEngineer?.name === engineerFilter
+      return matchSearch && matchStatus && matchCallType && matchCategory && matchCrStart && matchCrEnd && matchAsStart && matchAsEnd && matchEngineer
+    }).sort((a, b) => new Date(b.callRecordDate).getTime() - new Date(a.callRecordDate).getTime())
+  }, [tasks, search, statusFilter, callTypeFilter, categoryFilter, crStartDate, crEndDate, asStartDate, asEndDate, engineerFilter])
+
+  const groupedTasks = useMemo(() => {
+    const groups = new Map<string, { engineer: { _id: string; name: string; email: string }; tasks: TaskData[] }>()
+    for (const task of filteredTasks) {
+      const eid = task.assignedEngineer._id
+      if (!groups.has(eid)) groups.set(eid, { engineer: task.assignedEngineer, tasks: [] })
+      groups.get(eid)!.tasks.push(task)
+    }
+    groups.forEach((g) => g.tasks.sort((a, b) => (a.priority || 999) - (b.priority || 999)))
+    return Array.from(groups.values())
+  }, [filteredTasks])
+
+  const autoStartNext = useCallback(async (completedTaskId: string) => {
+    try {
+      const res = await fetch(`/api/service-tasks/${completedTaskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "startNext" }),
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data.success) fetchTasks()
+    } catch (error) {
+      console.error("Error auto-starting next task:", error)
+    }
+  }, [fetchTasks])
+
+  const expiredRef = useRef<string[]>([])
+  const dismissedRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const now = Date.now()
+    const nextTimers: Record<string, number> = {}
+    const nextTaskIds: Record<string, string> = {}
+    for (const group of groupedTasks) {
+      const eid = group.engineer._id
+      const hasQueued = tasks.some((t) => t.assignedEngineer?._id === eid && (t.status === "Queued" || t.status === "Assigned"))
+      if (!hasQueued) continue
+      const completedTask = group.tasks.find((t) => t.status === "Completed" && t.completedAt)
+      if (!completedTask) continue
+      const completedMs = new Date(completedTask.completedAt!).getTime()
+      const elapsed = Math.floor((now - completedMs) / 1000)
+      const remaining = 180 - elapsed
+      if (remaining > 0 && !breakTimers[eid] && !onBreakEngineers.has(eid) && !dismissedRef.current.has(completedTask._id)) {
+        nextTimers[eid] = remaining
+        nextTaskIds[eid] = completedTask._id
+      }
+    }
+    if (Object.keys(nextTimers).length > 0) {
+      setBreakTimers((prev) => ({ ...prev, ...nextTimers }))
+      setTimerCompletedTask((prev) => ({ ...prev, ...nextTaskIds }))
+    }
+    setBreakTimers((prev) => {
+      let changed = false
+      const cleaned = { ...prev }
+      for (const eid of Object.keys(cleaned)) {
+        if (onBreakEngineers.has(eid)) { delete cleaned[eid]; changed = true }
+      }
+      return changed ? cleaned : prev
+    })
+  }, [groupedTasks, tasks, breakTimers, onBreakEngineers])
+
+  useEffect(() => {
+    timerTickRef.current = setInterval(() => {
+      expiredRef.current = []
+      setBreakTimers((prev) => {
+        const updated = { ...prev }
+        for (const [eid, secs] of Object.entries(updated)) {
+          if (secs <= 1) {
+            delete updated[eid]
+            expiredRef.current.push(eid)
+          } else {
+            updated[eid] = secs - 1
+          }
+        }
+        return { ...updated }
+      })
+    }, 1000)
+    return () => { if (timerTickRef.current) clearInterval(timerTickRef.current) }
+  }, [])
+
+  useEffect(() => {
+    for (const eid of expiredRef.current) {
+      const taskId = timerCompletedTask[eid]
+      if (taskId) {
+        autoStartNext(taskId)
+        setTimerCompletedTask((prev) => { const n = { ...prev }; delete n[eid]; return n })
+      }
+    }
+    expiredRef.current = []
+  }, [breakTimers, timerCompletedTask, autoStartNext])
+
+  const handleTimerStartNext = useCallback(async (engineerId: string) => {
+    const taskId = timerCompletedTask[engineerId]
+    if (!taskId) return
+    dismissedRef.current.add(taskId)
+    setTimerStartingNext((prev) => ({ ...prev, [engineerId]: true }))
+    try {
+      const res = await fetch(`/api/service-tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "startNext" }),
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data.success) fetchTasks()
+      else alert(data.error || "Failed to start next task")
+    } catch {
+      alert("Failed to start next task")
+    } finally {
+      setTimerStartingNext((prev) => ({ ...prev, [engineerId]: false }))
+      setBreakTimers((prev) => { const n = { ...prev }; delete n[engineerId]; return n })
+      setTimerCompletedTask((prev) => { const n = { ...prev }; delete n[engineerId]; return n })
+    }
+  }, [timerCompletedTask, fetchTasks])
+
+  const handleTimerTakeBreak = useCallback(async (engineerId: string, completedTaskId: string) => {
+    dismissedRef.current.add(completedTaskId)
+    setBreakTimers((prev) => { const n = { ...prev }; delete n[engineerId]; return n })
+    setTimerCompletedTask((prev) => { const n = { ...prev }; delete n[engineerId]; return n })
+    setOnBreakEngineers((prev) => new Set(prev).add(engineerId))
+    try {
+      const res = await fetch("/api/breaks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: engineerId, completedTaskId }),
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data.success && data.data?._id) {
+        setActiveBreakIds((prev) => ({ ...prev, [engineerId]: data.data._id }))
+      }
+    } catch (e) {
+      console.error("Failed to record break:", e)
+    }
+  }, [])
+
+  const exportToExcel = async () => {
+    const ExcelJS = (await import("exceljs")).default
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet("Call-Case List")
+
+    sheet.columns = [
+      { header: "Call/Case ID", key: "taskId", width: 18 },
+      { header: "Customer Name", key: "customerName", width: 30 },
+      { header: "Assigned Engineer", key: "engineer", width: 22 },
+      { header: "Status", key: "status", width: 18 },
+      { header: "Call Type", key: "callType", width: 22 },
+      { header: "Category", key: "category", width: 22 },
+      { header: "Product Category", key: "productCategory", width: 20 },
+      { header: "Product Type", key: "productType", width: 20 },
+      { header: "Device Model", key: "deviceModel", width: 25 },
+      { header: "Department", key: "department", width: 20 },
+      { header: "Phone", key: "phone", width: 18 },
+      { header: "Location", key: "location", width: 25 },
+      { header: "Problem", key: "problem", width: 35 },
+      { header: "Call Record Date", key: "callRecordDate", width: 20 },
+      { header: "Assigned Date", key: "assignedDate", width: 20 },
+      { header: "Received By", key: "receivedBy", width: 22 },
+      { header: "Priority", key: "priority", width: 10 },
+    ]
+
+    filteredTasks.forEach((task) => {
+      sheet.addRow({
+        taskId: task.taskId,
+        customerName: task.customerName,
+        engineer: task.assignedEngineer?.name || "",
+        status: task.status,
+        callType: task.callType,
+        category: task.customerCategory,
+        productCategory: task.productCategory,
+        productType: task.productType,
+        deviceModel: task.deviceModel,
+        department: task.department,
+        phone: task.contactNumber,
+        location: task.location,
+        problem: task.problem,
+        callRecordDate: task.callRecordDate ? formatDateTime(task.callRecordDate) : "",
+        assignedDate: task.assignedFromQueueAt ? formatDateTime(task.assignedFromQueueAt) : "",
+        receivedBy: task.receivedBy?.name || "",
+        priority: task.priority,
+      })
+    })
+
+    const headerRow = sheet.getRow(1)
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } }
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F766E" } }
+    headerRow.alignment = { vertical: "middle", horizontal: "center" }
+    headerRow.height = 22
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 17 } }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `call-case-list-${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const combinedHealth = useMemo(() => {
     let totalScore = 0
@@ -761,6 +1084,7 @@ export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds 
       let taskCount = 0
       for (const pair of gapPairs) {
         function taskTs(f: string): string | undefined {
+          if (f === "assignedFromQueueAt") return task.assignedFromQueueAt || task.createdAt
           if (f === "createdAt") return task.createdAt
           if (f === "acknowledgedAt") return task.acknowledgedAt
           if (f === "travelStartedAt") return task.travelStartedAt
@@ -777,7 +1101,7 @@ export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds 
           if (f === "gapChecklistSubmittedToCompleted") return task.gapChecklistSubmittedToCompleted
           return ""
         }
-        const fromTs = pair.fromTs === "createdAt" ? task.createdAt : taskTs(pair.fromTs)
+        const fromTs = taskTs(pair.fromTs)
         const toTs = taskTs(pair.toTs)
         if (!fromTs || !toTs) continue
         const actualMin = (new Date(toTs).getTime() - new Date(fromTs).getTime()) / 60000
@@ -902,38 +1226,213 @@ export default function ServiceTaskList({ refreshKey, userId, assignedToUserIds 
             onChange={(e) => setCategoryFilter(e.target.value)}
           />
         </div>
-        <div className="w-full sm:w-44">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start date" />
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3 items-end">
+        <div className="flex items-end gap-2">
+          <span className="text-xs font-semibold text-slate-600 whitespace-nowrap pb-2">Call Record Date</span>
+          <div className="w-full sm:w-40">
+            <label className="text-xs text-slate-500 font-medium mb-1 block">From</label>
+            <Input type="date" value={crStartDate} onChange={(e) => setCrStartDate(e.target.value)} />
+          </div>
+          <div className="w-full sm:w-40">
+            <label className="text-xs text-slate-500 font-medium mb-1 block">To</label>
+            <Input type="date" value={crEndDate} onChange={(e) => setCrEndDate(e.target.value)} />
+          </div>
         </div>
-        <div className="w-full sm:w-44">
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End date" />
+        <div className="flex items-end gap-2">
+          <span className="text-xs font-semibold text-slate-600 whitespace-nowrap pb-2">Assigned Date</span>
+          <div className="w-full sm:w-40">
+            <label className="text-xs text-slate-500 font-medium mb-1 block">From</label>
+            <Input type="date" value={asStartDate} onChange={(e) => setAsStartDate(e.target.value)} />
+          </div>
+          <div className="w-full sm:w-40">
+            <label className="text-xs text-slate-500 font-medium mb-1 block">To</label>
+            <Input type="date" value={asEndDate} onChange={(e) => setAsEndDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex items-end gap-2 ml-auto">
+          <Button variant="outline" onClick={exportToExcel} disabled={filteredTasks.length === 0} className="gap-2">
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
         </div>
       </div>
-      {filteredTasks.length === 0 ? (
+      {statusView ? (
+        allFilteredTasks.length === 0 ? (
+          <Card><CardContent className="py-16"><div className="text-center"><ClipboardList className="w-12 h-12 mx-auto text-slate-300 mb-3" /><p className="text-slate-500">No calls/cases match your filters</p></div></CardContent></Card>
+        ) : (
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[1400px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Call/Case ID</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Customer Name</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Assigned Engineer</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Call Type</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Category</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Product Category</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Product Type</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Device Model</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Department</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Phone</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Location</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Problem</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Call Record Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Assigned Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Received By</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Priority</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allFilteredTasks.map((task) => (
+                    <tr key={task._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">#{task.taskId}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{task.customerName}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.assignedEngineer?.name || "—"}</td>
+                      <td className="px-4 py-3 whitespace-nowrap"><span className={cn("inline-block px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap", statusColors[task.status] || "bg-gray-100 text-gray-800")}>{task.status}</span></td>
+                      <td className="px-4 py-3 text-slate-600">{task.callType}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.customerCategory || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.productCategory || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.productType || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.deviceModel}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.department || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.contactNumber}</td>
+                      <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate" title={task.location}>{task.location}</td>
+                      <td className="px-4 py-3 text-slate-600 max-w-[250px] truncate" title={task.problem}>{task.problem}</td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDateTime(task.callRecordDate)}</td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{task.assignedFromQueueAt ? formatDateTime(task.assignedFromQueueAt) : "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.receivedBy?.name || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{task.priority > 0 ? `#${task.priority}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : filteredTasks.length === 0 ? (
         <Card><CardContent className="py-16"><div className="text-center"><ClipboardList className="w-12 h-12 mx-auto text-slate-300 mb-3" /><p className="text-slate-500">No calls/cases match your filters</p></div></CardContent></Card>
       ) : (
-        filteredTasks.map((task, index) => (
-          <div
-            key={task._id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={() => setDragOverIndex(null)}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragEnd={handleDragEnd}
-            className={cn(
-              dragIndex === index && "opacity-40",
-              dragOverIndex === index && dragIndex !== index && "relative"
-            )}
-          >
-            {dragOverIndex === index && dragIndex !== index && (
-              <div className="absolute -top-1 left-0 right-0 z-10 flex justify-center pointer-events-none">
-                <div className="w-full h-0.5 bg-blue-500 rounded-full" />
+        groupedTasks.map((group) => {
+          const isCollapsed = collapsedEngineers.has(group.engineer._id)
+          return (
+            <div key={group.engineer._id} className="border border-slate-200 rounded-lg overflow-hidden">
+              <div
+                className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+              >
+                <div
+                  onClick={() => setCollapsedEngineers((prev) => { const n = new Set(prev); if (n.has(group.engineer._id)) n.delete(group.engineer._id); else n.add(group.engineer._id); return n })}
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                >
+                  <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", !isCollapsed && "rotate-180")} />
+                  <p className="text-sm font-semibold text-slate-800">{group.engineer.name}</p>
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">{group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}</span>
+                </div>
+                {breakTimers[group.engineer._id] > 0 && (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 border border-amber-300 rounded-lg">
+                      <Timer className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-sm font-mono font-bold text-amber-700">
+                        {Math.floor(breakTimers[group.engineer._id] / 60)}:{String(breakTimers[group.engineer._id] % 60).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTimerTakeBreak(group.engineer._id, timerCompletedTask[group.engineer._id] ?? "")}
+                      disabled={timerTakingBreak[group.engineer._id]}
+                      className="text-amber-600 border-amber-300 hover:bg-amber-50 h-7 text-xs"
+                    >
+                      <Coffee className="w-3 h-3 mr-1" />
+                      Take Break
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleTimerStartNext(group.engineer._id)}
+                      disabled={timerStartingNext[group.engineer._id]}
+                      className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                    >
+                      {timerStartingNext[group.engineer._id] ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                      )}
+                      Start Next Work
+                    </Button>
+                  </div>
+                )}
+                {onBreakEngineers.has(group.engineer._id) && !breakTimers[group.engineer._id] && (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 border border-amber-300 rounded-lg">
+                      <Coffee className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-xs font-semibold text-amber-700">{showResumeWork ? "You are on break" : "On a break"}</span>
+                    </div>
+                    {showResumeWork && (
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          const breakId = activeBreakIds[group.engineer._id]
+                          if (breakId) {
+                            await fetch(`/api/breaks/${breakId}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "endBreak" }),
+                              credentials: "include",
+                            })
+                            setActiveBreakIds((prev) => { const n = { ...prev }; delete n[group.engineer._id]; return n })
+                          }
+                          setOnBreakEngineers((prev) => { const n = new Set(prev); n.delete(group.engineer._id); return n })
+                          const nextTask = tasks.find((t) => t.assignedEngineer?._id === group.engineer._id && (t.status === "Queued" || t.status === "Assigned"))
+                          if (nextTask) {
+                            await fetch(`/api/service-tasks/${nextTask._id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: "Assigned", assignedFromQueueAt: new Date().toISOString() }),
+                              credentials: "include",
+                            })
+                            fetchTasks()
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Resume Work
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            <TaskCard task={task} userId={userId} onStatusChange={fetchTasks} />
-          </div>
-        ))
+              {!isCollapsed && (
+                <div className="divide-y divide-slate-100">
+                  {group.tasks.map((task, index) => (
+                    <div
+                      key={task._id}
+                      draggable={allowDragReorder}
+                      onDragStart={allowDragReorder ? (e) => handleDragStart(e, index, group.engineer._id) : undefined}
+                      onDragOver={allowDragReorder ? (e) => handleDragOver(e, index, group.engineer._id) : undefined}
+                      onDragLeave={allowDragReorder ? () => setDragOverIndex(null) : undefined}
+                      onDrop={allowDragReorder ? (e) => handleDrop(e, index, group.engineer._id) : undefined}
+                      onDragEnd={allowDragReorder ? handleDragEnd : undefined}
+                      className={cn(
+                        allowDragReorder && dragIndex === index && dragGroupEngineerId === group.engineer._id && "opacity-40",
+                        allowDragReorder && dragOverIndex === index && dragIndex !== index && "relative"
+                      )}
+                    >
+                      {allowDragReorder && dragOverIndex === index && dragIndex !== index && dragGroupEngineerId === group.engineer._id && (
+                        <div className="absolute -top-1 left-0 right-0 z-10 flex justify-center pointer-events-none">
+                          <div className="w-full h-0.5 bg-blue-500 rounded-full" />
+                        </div>
+                      )}
+                      <TaskCard task={task} userId={userId} onStatusChange={fetchTasks} showActionButtons={showActionButtons} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })
       )}
     </div>
   )

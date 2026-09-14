@@ -2,7 +2,9 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { connectDB } from "@/lib/db"
 import { ServiceTask } from "@/models/ServiceTask"
+import { EngineerInfo } from "@/models/EngineerInfo"
 import { verifyAccessToken } from "@/lib/auth"
+import { sendAssignmentSMS } from "@/lib/sms"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,6 +44,35 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.gapTravelStartedToCheckedIn !== undefined) updateData.gapTravelStartedToCheckedIn = body.gapTravelStartedToCheckedIn
     if (body.gapCheckedInToChecklistSubmitted !== undefined) updateData.gapCheckedInToChecklistSubmitted = body.gapCheckedInToChecklistSubmitted
     if (body.gapChecklistSubmittedToCompleted !== undefined) updateData.gapChecklistSubmittedToCompleted = body.gapChecklistSubmittedToCompleted
+    if (body.autoAssignedFromQueue !== undefined) updateData.autoAssignedFromQueue = body.autoAssignedFromQueue
+    if (body.assignedFromQueueAt !== undefined) updateData.assignedFromQueueAt = body.assignedFromQueueAt
+
+    if (body.action === "startNext") {
+      const currentTask = await ServiceTask.findById(id).select("assignedEngineer").lean()
+      if (currentTask?.assignedEngineer) {
+        const nextTask = await ServiceTask.findOne({
+          assignedEngineer: currentTask.assignedEngineer,
+          status: { $in: ["Queued", "Assigned"] },
+        }).sort({ priority: 1 }).lean()
+        if (nextTask) {
+          await ServiceTask.findByIdAndUpdate(nextTask._id, { status: "Assigned", assignedFromQueueAt: new Date() })
+        }
+      }
+    }
+
+    if (body.action === "resumeFromBreak") {
+      updateData.status = "Assigned"
+      const currentTask = await ServiceTask.findById(id).select("assignedEngineer").lean()
+      if (currentTask?.assignedEngineer) {
+        const nextTask = await ServiceTask.findOne({
+          assignedEngineer: currentTask.assignedEngineer,
+          status: { $in: ["Queued", "Assigned"] },
+        }).sort({ priority: 1 }).lean()
+        if (nextTask) {
+          await ServiceTask.findByIdAndUpdate(nextTask._id, { status: "Assigned", assignedFromQueueAt: new Date() })
+        }
+      }
+    }
 
     if (body.status === "Acknowledge") {
       updateData.acknowledgedAt = new Date()
@@ -110,6 +141,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (!task) {
       return NextResponse.json({ success: false, error: "Call/Case not found" }, { status: 404 })
+    }
+
+    if (body.status === "Assigned" && body.notifyAssignee === true && task.assignedEngineer) {
+      const engInfo = await EngineerInfo.findOne({ engineerId: task.assignedEngineer._id }).lean()
+      if (engInfo?.mobileNumber) {
+        sendAssignmentSMS({ to: engInfo.mobileNumber, task: { taskId: task.taskId } })
+      }
     }
 
     return NextResponse.json({ success: true, data: task })

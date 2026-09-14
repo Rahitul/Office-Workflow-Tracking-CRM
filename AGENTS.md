@@ -1,11 +1,11 @@
 # iomdaily
 
-Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zustand 5, Recharts, Leaflet.
+Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zustand 5, React Query, Recharts, Leaflet.
 `@/*` → `./*`.
 
 ## Commands
 - `npm run build` — `output: "standalone"`; TS errors fail build. `npx tsc --noEmit` for faster check.
-- `npm run lint` — ESLint 9 flat config (`eslint.config.mjs`). **Slow (minutes) and currently surfaces pre-existing `@typescript-eslint/no-explicit-any` errors** (e.g. in `app/service/machine-list/page.tsx`) — lint only changed files via `npx eslint <paths>` for fast feedback; don't "fix" unrelated pre-existing errors.
+- `npm run lint` — ESLint 9 flat config (`eslint.config.mjs`). **Slow (minutes) and currently surfaces pre-existing `@typescript-eslint/no-explicit-any` errors** (e.g. in `app/service/machine-list/page.tsx`) — lint only changed files via `npx eslint <paths>` for fast feedback; don't "fix" unrelated pre-existing errors. Note: `package.json` lint script includes `--ext .js,.jsx,.ts,.tsx` which ESLint 9 flat config ignores (flat config uses file matching from the config itself).
 - `npm run dev` — auto-port.
 - Ad-hoc tests (`test-api.js`, `test-admin.js`, `test-full.js`) — `node` against a running server on port **4001** (standalone/prod). The dev server runs on port 3000 — point test scripts at the right port.
 
@@ -15,7 +15,7 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - Per-handler auth in API routes: `const cookieStore = await cookies()` then `await verifyAccessToken(token)` from `lib/auth.ts`. Client-side: `checkAuth()` in layout `useEffect`.
 - JWT access 7d, refresh 30d (hashed via `RefreshToken` model; rotation on refresh).
 - Login redirects in `app/login/page.tsx` — all 26 roles mapped to their default route.
-- `apiBranchPaths` = admin-only; `apiEsbdPaths` = esbd/service/admin; `apiAccountsPaths` = accounts/admin; `apiAllAuthPaths` = any authenticated role.
+- `apiBranchPaths` = admin-only; `apiEsbdPaths` = esbd/service/admin; `apiAccountsPaths` = accounts/admin; `apiAllAuthPaths` = any authenticated role (includes `/api/bill-targets`, `/api/breaks`, `/api/filter-dates`, `/api/service-history` among others).
 - **Some API routes are NOT in `proxy.ts` path arrays** (e.g. `/api/kpi-targets`, `/api/kpi-targets/*`, `/api/static-form/*`, `/api/images/*`) — they bypass middleware auth and rely solely on per-handler `verifyAccessToken`. If adding a new API route, decide whether to add it to `proxy.ts` or let handler-level auth suffice.
 - All proxy matching is `pathname.startsWith(path)` — a listed path automatically covers its sub-routes (e.g. `/api/project-tender` also matches `/api/project-tender/xyz`). `apiAllAuthPaths` only checks authentication, not role — per-handler role whitelists are the real gate.
 - Root `app/page.tsx` simply redirects to `/login`.
@@ -33,9 +33,10 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - `project-tender` routes for `admin` (custom page), plus `user`/`user_juniors`/`consumable`/`consumable_juniors`/`service`/`service_juniors`/`esbd`/`esbd_juniors` (shared `@/components/project-tender-page`).
 - KPI dashboards: `user`/`user_juniors` use `@/components/kpi-dashboard-sales-view`; `consumable`/`consumable_juniors` use `@/components/kpi-dashboard-consumable-view`.
 - `consumable`/`consumable_juniors` daily-activity page (`daily-activity/page.tsx`) is duplicated inline across both roles — edit both in parallel.
+- **Service pinned nav**: `app/service/layout.tsx` has a pin-to-top feature — hover sidebar nav items to reveal a pin icon, click to pin/unpin. Pinned items show as a sticky horizontal chip bar above main content. State persisted in `localStorage` key `service-pinned-nav`. Service-only for now; not yet on other role layouts.
 
 ## Models (Mongoose 9)
-- **Hot-reload** (25 of the 44 model files, incl. `ProjectTender`, `DropdownOption`, `EngineerInfo`): `delete mongoose.models.<Name>` before `mongoose.model()`. Others (incl. `Machine`, `ServiceHistory`, `LeadTransfer`) cache via `mongoose.models.<Name> || mongoose.model(...)` — edits need server restart.
+- **Hot-reload** (28 of the 47 model files, incl. `ProjectTender`, `DropdownOption`, `EngineerInfo`, `BreakRecord`): `delete mongoose.models.<Name>` before `mongoose.model()`. Others (incl. `Machine`, `ServiceHistory`, `LeadTransfer`, `TravelTime`, `ServiceTask`) cache via `mongoose.models.<Name> || mongoose.model(...)` — edits need server restart.
 - `new mongoose.Types.ObjectId(string)` — never plain strings.
 - `.populate()` needs ObjectId ref type. TS quirk: after `.populate("userId", "name")`, TS still sees `ObjectId` — cast `t.userId as any` to access `.name`.
 - `connectDB()` in `lib/db.ts`: global singleton — call once per API route.
@@ -84,6 +85,20 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - Window: `warrantyExpired` within **0–15 days from today (UTC)** and `email != ""`. Emails once per machine — `Machine.warrantyNotified` (default `false`) is set `true` only after a successful send; failures retry next run. Query uses `warrantyNotified: { $ne: true }` so pre-flag records (field absent) still match. **Cached model — schema edits need a server restart.**
 - Sender: `sendWarrantyExpiryEmail()` in `lib/email.ts` (same nodemailer transporter as `sendTrainingAssignedEmail`), subject `Warranty Expiring Soon: {brand} {model} ({machineId})`; body carries necessary machine info only (machineId, customer, brand, model, serial, product category, department, location, contact, bill date, expiry date, days left).
 
+## SMS Notifications (GenNet)
+- **Provider**: GenNet Push SMS API v3 — `POST https://isms.gennet.com.bd/api/v3/send-sms` (Single SMS endpoint).
+- **Utility**: `lib/sms.ts` — `sendAssignmentSMS({ to, task })` sends an SMS when a call/case is assigned to an engineer. Uses `axios` (already a dependency). Fire-and-forget (no `await` in caller — never blocks the PATCH response). Logs `[SMS] Sent to ...` on success, `[SMS] Failed: ...` on GenNet error.
+- **Phone normalization**: `normalizePhone()` strips spaces/dashes, converts to `880XXXXXXXXXX` format (strips leading `0`, prepends `880`). Returns `null` for invalid numbers → SMS silently skipped with console warning.
+- **Trigger**: `app/api/service-tasks/[id]/route.ts` PATCH handler — when `body.status === "Assigned"` AND `body.notifyAssignee === true` AND `task.assignedEngineer` exists. Queries `EngineerInfo` by `engineerId` to get `mobileNumber` (primary number only, never `altMobileNumber`).
+- **Client-side `notifyAssignee` flag**: The boolean is NOT persisted — it only tells the server to send SMS. Sent by:
+  - Queue "Assign" button (blue, per-card) in `handleAssign` — `app/service/task-assign/page.tsx`, `app/esbd/task-assign/page.tsx`, `app/branch_manager/task-assign/page.tsx`
+  - Engineer panel "Assign" button (green, batch) in `handleAssignEngineer` — same 3 files
+  - Transfer button in `handleTransfer` — `components/service-task-list.tsx`
+- **NOT sent for**: drag-drop (doesn't set status), "Resume Work" after breaks (internal auto-action, no `notifyAssignee`), server-side `startNext`/`resumeFromBreak` actions.
+- **SMS message**: `New Case Assigned. Id:{taskId}, Link: http://182.160.108.210:4002/` (~63 chars, always 1 SMS segment).
+- **Env vars**: `GENNET_SMS_API_URL`, `GENNET_SMS_API_TOKEN`, `GENNET_SMS_SID` (in `.env.local` — see **Env Vars** gotcha about `$` escaping).
+- **GenNet `csms_id`**: Auto-generated per SMS via `Date.now().toString(36) + randomHex` — must be unique per day per request.
+
 ## Customer Service Card — Shareable Link (no login)
 - Customers view their machine/service card via a link with **no login**; the link itself is the credential.
 - `Machine.customerShareToken` (string, default `""`) is the per-card secret. **Cached model — the field won't exist until the server restarts**, and Mongoose `strict` mode then silently drops it on `save()`: the copied link appears valid but `GET /api/card/[machineId]` returns 404 "Invalid link". Restarting the server + clicking "Copy Customer Link" again fixes it.
@@ -97,9 +112,42 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - API `/api/dropdowns` (+ `[id]`) allows roles `service`/`esbd`/`admin`/`branch_manager`/`branch_manager_juniors` (branch roles needed by the branch_manager task-assign form). GET `?kind=`/`?parent=`; POST requires `parent` for `product_type` AND `model_name`, empty for top-level kinds.
 - Page `app/service/manage-dropdowns/page.tsx` = four banded sections: "Service Card Form Dropdowns" (6 cards, 3×2): Product Categories, Product Types (under category), Model Names (under product type), Departments, Options, SLA Values; "Task Assign Form Dropdowns" (3 cards): Customer Categories, Call Types, Problem; "Company List Dropdowns" (1 card): Company Categories; and "Quotation Section" (1 card): Quotation Types. `app/esbd/manage-dropdowns/page.tsx` re-exports it.
 - Machine form autocompletes (Department/Model/Option) source suggestions from `/api/dropdowns`, NOT `distinct` on the machines API. Model suggestions filter by `parent === productType`; changing Product Type/Category clears modelName. The `distinct` param still exists in `/api/machines` GET but is unused by the form.
-- Task-assign form + Queue filters (`app/service/task-assign/page.tsx`, byte-identical copies `app/branch_manager/task-assign/page.tsx` and `app/esbd/task-assign/page.tsx`) source Customer Category / Call Type / Problem / Department from `/api/dropdowns?kind=customer_category` / `?kind=call_type` / `?kind=problem` / `?kind=department` — **no hardcoded arrays**. Free-text still allowed; empty DB shows "No options found". All four use the searchable dropdown pattern (Search icon + Input + filtered dropdown + clear button + click-outside close).
+- Task-assign form + Queue filters (`app/service/task-assign/page.tsx`, byte-identical copies `app/branch_manager/task-assign/page.tsx` and `app/esbd/task-assign/page.tsx`) source Customer Category / Call Type / Problem / Department from `/api/dropdowns?kind=customer_category` / `?kind=call_type` / `?kind=problem` / `?kind=department` — **no hardcoded arrays**. Free-text still allowed; empty DB shows "No options found". All three use the searchable dropdown pattern (Search icon + Input + filtered dropdown + clear button + click-outside close).
 - Task-assign form also uses **cascading Product Category → Product Type Selects + Model combobox** fed from `product_category` / `product_type` / `model_name` dropdowns (same machine-form pattern: Type filters by `parent === category`, Model suggestions filter by `parent === type`). Stored on `ServiceTask.productCategory` / `productType` (schema `default: ""`, **not required** so old tasks re-save safely). `ServiceTask` is a **cached** model — schema edits need a server restart.
 - **UI label convention**: All user-facing text in task-assign pages uses "Call/Case" (not "Task") — tabs are "Call/Case Queue" / "Assign Call/Case" / "Call/Case List", headings say "Call/Case Assign", alerts say "Failed to assign call/case", etc. The file paths remain `task-assign/`.
+
+## Break Tracking (service, esbd, branch_manager task-assign)
+- **BreakRecord model** (`models/BreakRecord.ts`) is **hot-reload** — fields: `userId`, `completedTaskId`, `breakNumber`, `startedAt`, `endedAt?`, `durationSeconds?`, `date`. Unique index `{ userId, completedTaskId, breakNumber }`.
+- API `POST /api/breaks` — creates a break record (auto-increments `breakNumber` per user+task). `GET /api/breaks` — filters by `?userId=`, `?month=`, `?year=`, `?date=`, `?active=true` (returns only `endedAt: null` records). `PATCH /api/breaks/[id]` with `{ action: "endBreak" }` — sets `endedAt` and computes `durationSeconds`.
+- `/api/breaks` is in `proxy.ts` `apiAllAuthPaths`; all handlers whitelist the same role set as service-tasks.
+- **Timer UI** lives in `components/service-task-list.tsx` (shared by all 3 task-assign pages — edit once). 3-minute countdown in engineer group header when a task is Completed and the next is Queued/Assigned. Timer uses `completedAt` as start, NOT `assignedFromQueueAt`.
+- **Break label differs by role** via `showResumeWork` prop on `ServiceTaskList`:
+  - **Master roles** (`service`, `esbd`, `branch_manager`): pass `showResumeWork={false}` → label shows "In a break", no Resume Work button.
+  - **Juniors + branch-tracking**: default `showResumeWork={true}` → label shows "You are on break" + Resume Work button.
+- **List tab filters**: `service-task-list.tsx` has 3 filter rows: (1) Search + Status, (2) Engineer + Call Type + Category, (3) Call Record Date (From/To) + Assigned Date (From/To). The Call Record Date filter matches on `task.callRecordDate`; the Assigned Date filter matches on `task.assignedFromQueueAt` (tasks without it are excluded when filter is active). **Assigned Date defaults to today** — `asStartDate`/`asEndDate` initialized to `todayStr`.
+- **`ServiceTaskList` props**: `allowDragReorder` (default `true`) — enables/disables priority reorder drag-and-drop in the list tab; `showActionButtons` (default `true`) — controls visibility of Show Status Map, Transfer, and Cancel buttons in TaskCard; `showResumeWork` (default `true`) — controls break label text and Resume Work button visibility.
+- **List tab TaskCard collapsed** shows a **status badge** (colored pill) on the right side next to the chevron — added so status is visible without expanding.
+- **List tab TaskCard expanded info** shows: Received by, Assigned Engineer, Product Category, Product Type, Department, Phone, Location, Call Record Date, Assigned Date. No "Assigned At" (`createdAt`) field — removed.
+- **Status Tracking total time summary** (expanded card): After the gap timeline, shows "Total Estimated: Xh Xm | Total Actual: Xh Xm | +/-Xm over/under". Uses `tTs` and `tGap` helper functions defined locally inside the IIFE (not the ones inside `gapPairs.map()`).
+- **`statusView` prop** on `ServiceTaskList`: When `true`, renders a **scrollable table** (`min-w-[1400px]`) with 17 columns matching the Excel export: Call/Case ID, Customer Name, Assigned Engineer, Status (badge), Call Type, Category, Product Category, Product Type, Device Model, Department, Phone, Location, Problem, Call Record Date, Assigned Date, Received By, Priority. Includes `allFilteredTasks` memo that does NOT filter out Queued/Cancelled tasks (unlike `filteredTasks`).
+- **`formatDuration`** and **`getMinutesGap`** are exported from `service-task-list.tsx` — used by task-assign pages for gap sum calculations.
+- **Queue tab gap sum**: Each expanded queue card shows "Total Estimated Time: Xh Xm" below the status timeline dropdowns, summing all 4 gap values.
+- **Status tab** (task-assign pages): A top-level tab alongside Queue/Assign/List/Canceled/Breaks. Master pages (service, esbd, branch_manager) add it to `TabType` + tabs array + render `<ServiceTaskList statusView />`. Junior pages (service_juniors, esbd_juniors, branch_manager_juniors) were rewritten from 34-line single-view to tabbed UI with "Call/Case List" and "Status" tabs.
+- **Break state persistence across reload**: `fetchActiveBreaks()` calls `GET /api/breaks?active=true` on mount and restores `onBreakEngineers` + `activeBreakIds` state. The timer init useEffect must check `onBreakEngineers.has(eid)` AND clean up stale timers for on-break engineers — a race condition exists where `fetchTasks` completes before `fetchActiveBreaks`, setting a timer that must be removed once break state is restored.
+- **`dismissedRef` tracks task IDs** (not engineer IDs) to prevent timer re-init after Take Break / Start Next Work.
+- **`ServiceTask.assignedFromQueueAt`** (optional Date) — set by both `action: "startNext"` (server-side) and Resume Work / bulk assign (client-side PATCH). Used as gap start for `gapAssignedToAcknowledge` instead of `createdAt`.
+- **Queue drag-to-assign priority**: When dragging a task from the queue to an engineer panel, `fetchNextAvailablePriorityForEngineer` checks the engineer's tasks in the DB, finds the highest priority among tasks assigned **today** (matching `assignedFromQueueAt` date), and returns `maxPriority + 1`. If no tasks today, returns `1`. This resets priority numbering each day.
+- **Queue engineer panel search**: The engineer panel (toggled by "Show Engineers") has a search input that filters engineers by name in real-time.
+- **Queue drag gap validation**: `handleEngineerDrop` checks all 4 gap timing fields (`gapAssignedToAcknowledge`, `gapAcknowledgeToTravelStarted`, `gapTravelStartedToCheckedIn`, `gapCheckedInToChecklistSubmitted`). If any is empty, the drop is blocked with `alert("Please set timeline first")`.
+- **`ServiceTask.callRecordDate`** — stored as `new Date()` (exact current timestamp) on task creation, NOT from the date picker value (which loses time). The date input in the Assign form is present but the submitted value is ignored in favor of the server timestamp.
+
+## Travel Time & Multi-Segment Routes
+- **TravelTime model** (`models/TravelTime.ts`) is **cached** — schema edits need server restart. Has optional `segments` array: `[{ vehicleType, hours, minutes }]`. Top-level `vehicleType`/`hours`/`minutes` are auto-computed from segments (first segment's type, sum of durations). Old entries without segments still work.
+- **Duplicate prevention** is segment-aware: POST and PUT build a `segmentsKey` (`"vehicleType:totalMinutes|..."`) and compare against existing entries with the same from/to locations. Only rejects if locations AND segments match exactly (case-insensitive locations via regex). Returns 409.
+- **Task-assign pages** (service, esbd, branch_manager — byte-identical): `getVehicleOptionsForRoute` returns combined strings like `"Bus + Rickshaw"` for multi-segment entries. `autoFillGap` matches combined keys by splitting on `" + "` and sums segment durations. `ServiceTask.vehicleType` stores the combined string as-is.
+- **List tab drag-and-drop**: `ServiceTaskList` has `allowDragReorder` prop (default `true`). Master roles (service, esbd, branch_manager) keep it enabled; juniors and branch-tracking pass `allowDragReorder={false}` to disable priority reorder within engineer groups.
+- **Travel-time pages** (4 identical copies: service, esbd, branch_manager, branch_manager_juniors): Segment-based form UI with add/remove rows, live total, autocomplete on From/To fields from existing locations. `normalizeLocation()` only trims whitespace (preserves original casing like "HO"). Edit mode synthesizes a single segment from legacy entries.
+- Travel-time page roles: `service`, `esbd`, `branch_manager`, `branch_manager_juniors`. API roles: same + `admin`.
 
 ## Quotation Status Transitions
 - Initial: `"Pending"`. Dropdown available while Pending or `"Follow Up N"`.
@@ -109,12 +157,21 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - Amount is editable in the list view unless status is `"Approved"`. PATCH `/api/quotations/[id]` must include `amount` in `updateData`.
 - Quotation has both `engineerName` (string) and `engineer` (optional ObjectId ref). The service branch-dashboard API groups by `engineer` (not `createdBy`) for monetary attribution — adding/editing quotations must save the `engineer` ObjectId.
 
+## Manage Quotation Tabs (service, esbd, branch_manager)
+- 4 tabs: **Create Quotation**, **Quotations List**, **Total Bill**, **Set Targets** — all rendered by `components/manage-quotation.tsx`.
+- All three role pages (`app/service/manage-quotation/page.tsx`, `app/esbd/manage-quotation/page.tsx`, `app/branch_manager/manage-quotation/page.tsx`) re-export the same `ManageQuotation` component — single-file edit covers all.
+- **Quotations List tab**: 6-filter bar (Customer, Department, Engineer, Date Range, Status). **Export** button downloads filtered quotations as Excel via `exceljs` (`dynamic import("exceljs")`). Columns: Quotation ID, Customer Name, Engineer, Quotation Type, Department, Amount, Contact Person, Contact Number, Quotation Date, Status, Bill Date.
+- **Set Targets tab**: Fetches ALL engineers from `/api/users` (filtered client-side to `ENGINEER_ROLES`: `service`, `service_juniors`, `esbd`, `esbd_juniors`, `branch_service`, `branch_service_juniors`) + billable quotations for achieved amounts + existing targets from `/api/bill-targets`. **Group filter** dropdown: All Groups / EID (`service`, `service_juniors`) / ESBD (`esbd`, `esbd_juniors`) / Branch (all `branch_*` roles). **"Set target as previous for [NextMonth]" button**: opens a modal pre-filled with the current month's targets (editable), saves to next month via POST `/api/bill-targets` then auto-switches the month/year selector. Save Selected / Save All buttons → bulk POST to `/api/bill-targets`.
+- **Total Bill tab**: Fetches `/api/quotations?billable=true`, groups by `engineerName`. Shows per-engineer expandable groups with progress bars (green ≥100%, yellow ≥50%, red <50%) when targets exist. Month/Year selectors auto-set date range. Fetches targets from `/api/bill-targets?month=&year=` for progress display. **Department filter** is persisted per-user via `/api/filter-dates` (same endpoint as date filters) — loads on mount, saves on change.
+- `BillTarget` model (`models/BillTarget.ts`, **hot-reload**): `{ userId, month, year, targetAmount, setByUserId }`. Unique index `{ userId, month, year }` — POST uses `findOneAndUpdate` with `{ upsert: true }`.
+- API roles for `/api/bill-targets`: `service`, `esbd`, `branch_manager`, `admin` (GET + POST + PATCH + DELETE). Registered in `proxy.ts` `apiAllAuthPaths`. GET returns explicit targets for the given month/year; POST requires month/year and upserts per user.
+
 ## Quotation Categories & Products
 - Quotation model has `category` (`"sales" | "service" | "consumable"`, default `"service"`), `department` (optional string, default `""`, sourced from `/api/dropdowns?kind=department`), and `products: [{ productName, models: [{ modelName, quantity, unitPrice, totalPrice }] }]`.
 - POST `/api/quotations` recomputes `amount` from `products` (sum of each model's `totalPrice`) — the client-sent `amount` is overridden when products are present. GET supports `?category=` and `?billable=true` (requires `billDate`).
 - Quotation ID: non-service → `${seq}-${Cat}-${year}`; service for branch roles embeds branch name (`${seq}-${branchName}-${Cat}-${year}`), else `${seq}-HO-${Cat}-${year}`.
 - POST and GET have DIFFERENT role whitelists in `/api/quotations`: POST excludes `branch_accounts`/`branch_accounts_juniors`, GET includes them.
-- Two quotation components (don't mix them up): `components/manage-quotation.tsx` = full create/edit flow with engineer selection + **Department searchable dropdown** (sourced from `/api/dropdowns?kind=department`) + 5-filter list bar (Customer, Department, Engineer, Date Range, Status) + 3-filter total bill bar (Engineer, Department, Date Range) (used by `service`, `esbd`, `branch_manager` manage-quotation pages); `components/manage-quotation-junior.tsx` = list + total-bill with matching filter bars, exports `QuotationsListTab`, accepts `category`/`showAll`/`engineerFilter` (used by `*_juniors` pages, branch apps via `branch-tracking-page.tsx`, and the admin Details tab).
+- Two quotation components (don't mix them up): `components/manage-quotation.tsx` = full create/edit flow with engineer selection + **Department searchable dropdown** (sourced from `/api/dropdowns?kind=department`) + 5-filter list bar (Customer, Department, Engineer, Date Range, Status) + Total Bill tab (with target progress bars) + **Set Targets tab** (used by `service`, `esbd`, `branch_manager` manage-quotation pages); `components/manage-quotation-junior.tsx` = list + total-bill with matching filter bars, exports `QuotationsListTab`, accepts `category`/`showAll`/`engineerFilter` (used by `*_juniors` pages, branch apps via `branch-tracking-page.tsx`, and the admin Details tab).
 - Quotation Type select in `manage-quotation.tsx` is sourced from `/api/dropdowns?kind=quotation_type` (not hardcoded). The branch-tracking `ProductCreateForm` Quotation Type selects (Sales/Consumable) are separate and still hardcoded via `SALES_TYPE_OPTIONS`/`CONSUMABLE_TYPE_OPTIONS`.
 - Per-category UI in `components/branch-tracking-page.tsx`: Sales/Consumable tabs each use `ProductCreateForm` + `QuotationsListTab` + `CategoryTotalBillTab` (all category-prop'd); Service tab uses `<ManageQuotationJunior category="service" />`. Admin branch-tracking Details tab shows per-category lists via `<ManageQuotationJunior showAll category="sales|consumable|service" />`.
 
@@ -147,9 +204,11 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - Apply this in both API POST handlers (storing `activityDate`) and GET handlers (filter query construction).
 
 ## Admin KPI Targets — Bulk Copy
-- `app/admin/kpi/page.tsx` has a **"Set target as like previous"** button in the Configure Target card header.
-- Clicking fetches the most recent month that has target data (`GET /api/kpi-targets/previous`), opens a modal with all users' targets as editable inputs, then bulk-saves to the currently selected month (`POST /api/kpi-targets/bulk`).
-- Order Value and Bill Value fields are read-only (auto-calculated from product-wise inputs).
+- Both `app/admin/kpi/page.tsx` (sales) and `app/admin/consumable-dashboard/page.tsx` (consumable) have a **"Set target as like previous"** button in the Configure Target card header.
+- **Sales KPI**: Clicking fetches the most recent month that has target data (`GET /api/kpi-targets/previous`), opens a modal with all users' targets as editable inputs, then bulk-saves to the currently selected month (`POST /api/kpi-targets/bulk`). Order Value and Bill Value fields are read-only (auto-calculated from product-wise inputs).
+- **Consumable KPI**: Same pattern — fetches from `GET /api/consumable-kpi-targets/previous`, modal with 13 editable fields (Calls, Visits, Quotation, 5 order products, 5 bill products), auto-calculated Order Amount and Bill Amount totals (read-only), saves via `POST /api/consumable-kpi-targets/bulk`. Orange-themed UI matches the consumable dashboard aesthetic.
+- Both bulk APIs require admin role. Both use `findOneAndUpdate` with `{ upsert: true }` on the compound unique index `{ userId, month, year }`.
+- **Consumable targets** (`ConsumableKpiTarget` model): `callsTarget`, `visitsTarget`, `quotationTarget`, `orderAmountTarget` (auto-sum), `orderValue{BlackAndWhite,Color,DuplicatorInk,DuplicatorMaster,Mps}`, `billAmountTarget` (auto-sum), `billValue{BlackAndWhite,Color,DuplicatorInk,DuplicatorMaster,Mps}`.
 
 ## Admin KPI — Member Dropdowns (user/user_juniors only)
 - `app/admin/kpi/page.tsx` ("Select User" + the "All Members" filter on Existing Targets) and `app/admin/kpi/dashboard/page.tsx` ("Team member") both fetch `GET /api/static-form/users` then **client-side filter to `role === "user" || role === "user_juniors"`** in the fetch handler. The endpoint returns service/consumable/branch roles too — the client filter is what scopes the dropdowns. If the KPI role set changes, update both fetch sites; both pages have `role?: string` on their `User` interface.
@@ -189,18 +248,21 @@ Next.js 16 (App Router), React 19, MongoDB (mongoose 9), Tailwind v4, Zod 4, Zus
 - `next.config.ts`: `output: "standalone"`. Must copy `.next/static` into `.next/standalone/` post-build.
 - `deploy.ps1` / `deploy.bat` (local, paths `H:\iomdaily`); `deploy-remote.ps1` / `deploy-remote.bat` (SMB to `\\server\c$`, paths `C:\iomdaily`, `pm2 restart`).
 - Server `PM2` cwd is `C:\iomdaily` running `.next/standalone/server.js` on port 4001.
-- `ecosystem.config.js` and `lib/email.ts` contain hardcoded secrets — do not commit.
+- `ecosystem.config.js`, `lib/email.ts`, and `lib/sms.ts` (fallback token) contain hardcoded secrets — do not commit.
 - Hard refresh (Ctrl+Shift+R) post-deploy to clear stale hash cache.
 
 ## API Route PATCH Patterns
 - When adding a new updatable field to a PATCH handler, you MUST add the corresponding `if (body.X !== undefined) updateData.X = body.X` line — it's easy to forget because each route has its own explicit field-by-field whitelist.
 - `/api/quotations/[id]` PATCH: whitelists `amount`, `billDate`, `engineer`, `department`, `status` (with special handling for Follow Up/Approved/Cancelled/Revised/Lost), `lostRemarks`, `followUpUser`, `followUpRemarks`.
 - `/api/lead-transfers/[id]` PATCH: NO role whitelist; body is `{ status, ...(remarks !== undefined ? { remarks } : {}) }` — `status` is set unconditionally (unlike the field-by-field whitelist pattern), `remarks` optional.
-- `/api/service-tasks/[id]` PATCH: whitelists `status`, `assignedEngineer`, `receivedBy`, `priority`, `department`, `fromLocation`, `toLocation`, `vehicleType`, gap fields, geolocation lat/lng per status, `resetTimestamps`.
+- `/api/service-tasks/[id]` PATCH: whitelists `status`, `assignedEngineer`, `receivedBy`, `priority`, `department`, `fromLocation`, `toLocation`, `vehicleType`, gap fields, geolocation lat/lng per status, `resetTimestamps`, `assignedFromQueueAt`. Also has `action: "startNext"` (finds next queued task for same engineer and sets `assignedFromQueueAt: new Date()`). **`notifyAssignee`** (boolean, not persisted) — triggers GenNet SMS to the assigned engineer when `status === "Assigned"`. Remember: adding a new field to the PATCH body requires adding the corresponding `if (body.X !== undefined) updateData.X = body.X` line — missing this line silently drops the update.
+- `/api/travel-times/[id]` PUT: accepts `segments` array (computes top-level `vehicleType`/`hours`/`minutes` from segments); segment-aware duplicate check (409 if same locations + same segments).
 - `/api/project-tender/[id]` PATCH: whitelists `resubmit` (full payload reset), admin fields (`adminStatus`, `adminRemarks`, `priceRevision`, `negotiablePriceApproved`), user workflow fields (`status`, `negotiablePrice`, `billNumber`, `billDate`, `lostRemarks`).
 
 ## Env Vars
-`.env*` gitignored: `MONGODB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `PORT`, `HOST`, `NODE_ENV`, `SMTP_*`.
+`.env*` gitignored: `MONGODB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `PORT`, `HOST`, `NODE_ENV`, `SMTP_*`, `GENNET_SMS_API_URL`, `GENNET_SMS_API_TOKEN`, `GENNET_SMS_SID`.
+
+**GenNet SMS token gotcha**: The API token contains `$` characters (e.g. `$2y$12$...`). In `.env.local`, `$` triggers variable interpolation — the token gets mangled. Must escape with `\$`: `GENNET_SMS_API_TOKEN="\$2y\$12\$..."`.
 
 ## Client-Side Gotchas
 - `cookies()` from `next/headers` is async — always `await cookies()`.

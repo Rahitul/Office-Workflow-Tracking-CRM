@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, GraduationCap, LogOut, Menu, X, User, ArrowRightLeft, Building2, Package, Users, ClipboardList, MapPin, Clock, FileText, Monitor, Briefcase, UserCog } from "lucide-react"
+import { LayoutDashboard, GraduationCap, LogOut, Menu, X, User, ArrowRightLeft, Building2, Package, Users, ClipboardList, MapPin, Clock, FileText, Monitor, Briefcase, UserCog, Pin, PinOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import NotificationBell from "@/components/notification-bell"
 
@@ -15,6 +15,27 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
   const { user, checkAuth, logout } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [pinnedHrefs, setPinnedHrefs] = useState<string[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const stored = localStorage.getItem("service-pinned-nav")
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("service-pinned-nav", JSON.stringify(pinnedHrefs))
+    }
+  }, [pinnedHrefs, mounted])
+
+  const togglePin = (href: string) => {
+    setPinnedHrefs((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    )
+  }
   
   useEffect(() => {
     setMounted(true)
@@ -97,21 +118,33 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+              const isPinned = pinnedHrefs.includes(item.href)
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150",
-                    isActive 
-                      ? "bg-teal-50 text-teal-700 border border-teal-100" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Icon size={18} />
-                  {item.label}
-                </Link>
+                <div key={item.href} className="group relative">
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150",
+                      isActive 
+                        ? "bg-teal-50 text-teal-700 border border-teal-100" 
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Icon size={18} />
+                    <span className="flex-1">{item.label}</span>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.href); }}
+                      className={cn(
+                        "opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-0.5 rounded hover:bg-slate-200",
+                        isPinned && "opacity-100 text-teal-600"
+                      )}
+                      title={isPinned ? "Unpin from top" : "Pin to top"}
+                    >
+                      {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                    </button>
+                  </Link>
+                </div>
               )
             })}
           </nav>
@@ -141,6 +174,39 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
       )}
       
       <div className="lg:pl-64">
+        {pinnedHrefs.length > 0 && (
+          <div className="bg-white border-b border-slate-200 px-6 py-2 flex flex-wrap gap-2 sticky top-0 z-30">
+            {pinnedHrefs.map((href) => {
+              const item = navItems.find((n) => n.href === href)
+              if (!item) return null
+              const Icon = item.icon
+              const isActive = pathname === href || pathname.startsWith(href + "/")
+              return (
+                <div
+                  key={href}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors duration-150 cursor-pointer",
+                    isActive
+                      ? "bg-teal-100 text-teal-800 border-teal-300"
+                      : "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100"
+                  )}
+                >
+                  <Link href={href} className="inline-flex items-center gap-1.5">
+                    <Icon size={13} />
+                    {item.label}
+                  </Link>
+                  <button
+                    onClick={() => togglePin(href)}
+                    className="ml-0.5 p-0.5 rounded-full hover:bg-teal-200 transition-colors"
+                    title="Unpin"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
         <main className="p-6 pt-16 lg:pt-6 min-h-screen">
           {children}
         </main>

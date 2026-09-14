@@ -2073,7 +2073,7 @@ function AssignedVisits({ onBack }: { onBack: () => void }) {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
-      <ServiceTaskList refreshKey={refreshKey} userId={user._id} />
+      <ServiceTaskList refreshKey={refreshKey} userId={user._id} allowDragReorder={false} showActionButtons={false} />
     </div>
   )
 }

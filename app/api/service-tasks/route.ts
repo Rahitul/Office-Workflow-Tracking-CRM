@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       customerGroup: body.customerGroup || "Not a group of company",
       status: body.status || "Assigned",
       createdBy: payload.userId,
+      autoAssignedFromQueue: body.autoAssignedFromQueue || false,
     })
 
     return NextResponse.json({ success: true, data: task }, { status: 201 })
